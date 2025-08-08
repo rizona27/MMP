@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - 新增通用的卡片视图
 struct CustomCardView<Content: View>: View {
@@ -170,6 +171,57 @@ struct ManageHoldingsMenuView: View {
     }
 }
 
+// MARK: - 主题模式选择视图
+// 此处引用 MMPApp.swift 中已定义的 ThemeMode 枚举
+struct ThemeModeView: View {
+    @AppStorage("themeMode") private var themeMode: ThemeMode = .system
+    
+    var body: some View {
+        CustomCardView(
+            title: "主题模式",
+            description: nil,
+            imageName: "paintbrush.fill",
+            backgroundColor: Color.teal.opacity(0.1),
+            contentForegroundColor: .teal
+        ) { fgColor in
+            Picker("主题", selection: $themeMode) {
+                ForEach(ThemeMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .background(Color.white.opacity(0.5))
+            .cornerRadius(8)
+            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        }
+    }
+}
+
+// MARK: - CSV导出文档
+struct CSVExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
+    var message: String
+    
+    init(message: String) {
+        self.message = message
+    }
+    
+    init(configuration: ReadConfiguration) throws {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        return FileWrapper(regularFileWithContents: message.data(using: .utf8)!)
+    }
+}
+
+// MARK: - 数组安全访问扩展
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
+
 struct ConfigView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
@@ -178,6 +230,10 @@ struct ConfigView: View {
     @State private var showingManageHoldingsMenuSheet = false
     @State private var showingAPILogSheet = false
     @State private var showingAboutSheet = false
+    @State private var showingManageFavoritesSheet = false
+    @State private var isImporting = false // 新增：导入状态
+    @State private var isExporting = false // 新增：导出状态
+    @State private var document: CSVExportDocument? // 新增：导出文档
     
     @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
 
@@ -193,52 +249,113 @@ struct ConfigView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    // MARK: - 持仓管理
-                    CustomCardView(
-                        title: "管理持仓",
-                        description: "新增、编辑或清空基金持仓数据",
-                        imageName: "folder.fill",
-                        backgroundColor: Color.blue.opacity(0.1),
-                        contentForegroundColor: .blue,
-                        action: {
-                            showingManageHoldingsMenuSheet = true
-                        }
-                    ) { _ in EmptyView() }
-                    .padding(.horizontal)
-                    .scaleEffect(0.9) // 缩小卡片
-
-                    // MARK: - 自定义功能
-                    CustomCardView(
-                        title: "快速定位栏",
-                        description: nil, // 不再使用 description 参数
-                        imageName: "slider.horizontal.3",
-                        backgroundColor: Color.purple.opacity(0.1),
-                        contentForegroundColor: .purple,
-                        action: nil, // 明确传递 action 为 nil
-                        toggleBinding: $isQuickNavBarEnabled // 传入 Toggle 的 Binding
-                    ) { fgColor in // content 闭包中只包含描述文本
-                        Text("在客户持仓页面启用或禁用快速字母定位栏")
-                            .font(.caption)
-                            .foregroundColor(fgColor.opacity(0.7))
-                            .lineLimit(2)
+                    // 第一行：管理持仓和管理收藏夹
+                    HStack(spacing: 16) {
+                        // 管理持仓卡片
+                        CustomCardView(
+                            title: "管理持仓",
+                            description: "新增、编辑或清空基金持仓数据",
+                            imageName: "folder.fill",
+                            backgroundColor: Color.blue.opacity(0.1),
+                            contentForegroundColor: .blue,
+                            action: {
+                                showingManageHoldingsMenuSheet = true
+                            }
+                        ) { _ in EmptyView() }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
+                          
+                        // 管理收藏夹卡片
+                        CustomCardView(
+                            title: "管理收藏夹",
+                            description: "添加、编辑和删除常用网站链接",
+                            imageName: "heart.circle.fill",
+                            backgroundColor: Color.red.opacity(0.1),
+                            contentForegroundColor: .red,
+                            action: {
+                                showingManageFavoritesSheet = true
+                            }
+                        ) { _ in EmptyView() }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
                     }
                     .padding(.horizontal)
-                    .scaleEffect(0.9) // 缩小卡片
-
-                    // MARK: - 其他
-                    CustomCardView(
-                        title: "API 日志查询",
-                        description: "查看基金净值API请求与响应日志",
-                        imageName: "doc.text.magnifyingglass",
-                        backgroundColor: Color.cyan.opacity(0.1),
-                        contentForegroundColor: .cyan,
-                        action: {
-                            showingAPILogSheet = true
-                        }
-                    ) { _ in EmptyView() }
+                      
+                    // 第二行：导入数据和导出数据
+                    HStack(spacing: 16) {
+                        // 导入数据卡片
+                        CustomCardView(
+                            title: "导入数据",
+                            description: "从CSV文件导入持仓数据",
+                            imageName: "square.and.arrow.down.fill",
+                            backgroundColor: Color.orange.opacity(0.1),
+                            contentForegroundColor: .orange,
+                            action: {
+                                isImporting = true
+                            }
+                        ) { _ in EmptyView() }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
+                          
+                        // 导出数据卡片
+                        CustomCardView(
+                            title: "导出数据",
+                            description: "导出持仓数据到CSV文件",
+                            imageName: "square.and.arrow.up.fill",
+                            backgroundColor: Color.orange.opacity(0.1),
+                            contentForegroundColor: .orange,
+                            action: {
+                                exportHoldingsToCSV()
+                                isExporting = true
+                            }
+                        ) { _ in EmptyView() }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
+                    }
                     .padding(.horizontal)
-                    .scaleEffect(0.9) // 缩小卡片
-
+                      
+                    // 第三行：快速定位和API日志
+                    HStack(spacing: 16) {
+                        // 快速定位卡片
+                        CustomCardView(
+                            title: "快速定位栏",
+                            description: nil,
+                            imageName: "slider.horizontal.3",
+                            backgroundColor: Color.purple.opacity(0.1),
+                            contentForegroundColor: .purple,
+                            action: nil,
+                            toggleBinding: $isQuickNavBarEnabled
+                        ) { fgColor in
+                            Text("在客户持仓页面启用或禁用快速字母定位栏")
+                                .font(.caption)
+                                .foregroundColor(fgColor.opacity(0.7))
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
+                          
+                        // API日志卡片
+                        CustomCardView(
+                            title: "API 日志查询",
+                            description: "查看基金净值API请求与响应日志",
+                            imageName: "doc.text.magnifyingglass",
+                            backgroundColor: Color.cyan.opacity(0.1),
+                            contentForegroundColor: .cyan,
+                            action: {
+                                showingAPILogSheet = true
+                            }
+                        ) { _ in EmptyView() }
+                        .frame(maxWidth: .infinity)
+                        .scaleEffect(0.9) // 缩小卡片
+                    }
+                    .padding(.horizontal)
+                      
+                    // 第四行：主题模式
+                    ThemeModeView()
+                        .padding(.horizontal)
+                        .scaleEffect(0.9)
+                    
+                    // 第五行：关于
                     CustomCardView(
                         title: "关于",
                         description: "查看程序版本信息及相关说明",
@@ -258,10 +375,30 @@ struct ConfigView: View {
             .navigationBarHidden(true)
             .onAppear(perform: onAppear)
             .onDisappear(perform: onDisappear)
+            // 文件导入导出处理器
+            .fileImporter(
+                isPresented: $isImporting,
+                allowedContentTypes: [.commaSeparatedText],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFileImport(result: result)
+            }
+            .fileExporter(
+                isPresented: $isExporting,
+                document: document,
+                contentType: .commaSeparatedText,
+                defaultFilename: "\(Date().formatted(Date.FormatStyle().month().day()))数据导出.csv"
+            ) { result in
+                handleFileExport(result: result)
+            }
             .sheet(isPresented: $showingManageHoldingsMenuSheet) {
                 ManageHoldingsMenuView()
                     .environmentObject(dataManager)
                     .environmentObject(fundService)
+            }
+            .sheet(isPresented: $showingManageFavoritesSheet) {
+                ManageFavoritesView()
+                    .environmentObject(dataManager)
             }
             .sheet(isPresented: $showingAPILogSheet) {
                 APILogView()
@@ -270,6 +407,175 @@ struct ConfigView: View {
             .sheet(isPresented: $showingAboutSheet) {
                 AboutView()
             }
+        }
+    }
+    
+    // MARK: - 导出持仓数据为CSV
+    private func exportHoldingsToCSV() {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        var csvString = "客户姓名,基金代码,购买金额,购买份额,购买日期,客户号,备注\n"
+        
+        for holding in dataManager.holdings {
+            let formattedDate = dateFormatter.string(from: holding.purchaseDate)
+            let amountStr = String(format: "%.2f", holding.purchaseAmount)
+            let sharesStr = String(format: "%.2f", holding.purchaseShares)
+            
+            csvString += "\(holding.clientName),\(holding.fundCode),\(amountStr),\(sharesStr),\(formattedDate),\(holding.clientID),\(holding.remarks)\n"
+        }
+        
+        document = CSVExportDocument(message: csvString)
+    }
+    
+    // MARK: - 处理文件导出结果
+    private func handleFileExport(result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            fundService.addLog("导出成功: \(url.lastPathComponent)")
+        case .failure(let error):
+            fundService.addLog("导出失败: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - 处理文件导入
+    private func handleFileImport(result: Result<[URL], Error>) {
+        do {
+            let urls = try result.get()
+            guard let url = urls.first else { return }
+
+            // --- 核心改动：请求和释放文件访问权限 ---
+            guard url.startAccessingSecurityScopedResource() else {
+                fundService.addLog("导入失败: 无法获取文件访问权限。")
+                return
+            }
+            
+            defer {
+                url.stopAccessingSecurityScopedResource()
+            }
+            // ------------------------------------
+            
+            let data = try String(contentsOf: url, encoding: .utf8)
+            let lines = data.components(separatedBy: "\n")
+            guard lines.count > 1 else {
+                fundService.addLog("导入失败: CSV文件为空或只有标题行。")
+                return
+            }
+            
+            // 解析CSV头部
+            let headers = lines[0].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            
+            // 定义列名映射
+            let columnMapping: [String: [String]] = [
+                "客户姓名": ["客户姓名", "姓名"],
+                "基金代码": ["基金代码", "代码"],
+                "购买金额": ["购买金额", "持仓成本（元）", "持仓成本", "成本"],
+                "购买份额": ["购买份额", "当前份额", "份额"],
+                "购买日期": ["购买日期", "最早购买日期", "日期"],
+                "客户号": ["客户号", "核心客户号"],
+                "备注": ["备注"]
+            ]
+            
+            // 查找列索引
+            var columnIndices = [String: Int]()
+            var missingRequiredHeaders: [String] = []
+
+            for (key, aliases) in columnMapping {
+                var found = false
+                for alias in aliases {
+                    if let index = headers.firstIndex(where: { $0.contains(alias) }) {
+                        columnIndices[key] = index
+                        found = true
+                        break
+                    }
+                }
+                // 检查必要列是否找到
+                if !found && ["基金代码", "购买金额", "购买份额", "客户号"].contains(key) {
+                    missingRequiredHeaders.append(key)
+                }
+            }
+
+            // 检查所有必要列是否都已找到
+            if !missingRequiredHeaders.isEmpty {
+                let missingColumnsString = missingRequiredHeaders.joined(separator: ", ")
+                fundService.addLog("导入失败: 缺少必要的列 (\(missingColumnsString))")
+                return
+            }
+            
+            // 解析数据行
+            var importedCount = 0
+            for i in 1..<lines.count {
+                let values = lines[i].components(separatedBy: ",")
+                // 确保数据行有足够的列
+                guard values.count >= headers.count else { continue }
+                
+                // 数据清洗
+                guard let fundCodeIndex = columnIndices["基金代码"],
+                      let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                let cleanedFundCode = fundCode.padding(toLength: 6, withPad: "0", startingAt: 0)
+                
+                guard let amountIndex = columnIndices["购买金额"],
+                      let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      let amount = Double(amountStr) else { continue }
+                let cleanedAmount = (amount * 100).rounded() / 100
+                
+                guard let sharesIndex = columnIndices["购买份额"],
+                      let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      let shares = Double(sharesStr) else { continue }
+                let cleanedShares = (shares * 100).rounded() / 100
+                
+                var purchaseDate = Date()
+                if let dateIndex = columnIndices["购买日期"],
+                   let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd"
+                    if let date = dateFormatter.date(from: dateStr) {
+                        purchaseDate = date
+                    }
+                }
+                
+                guard let clientIDIndex = columnIndices["客户号"],
+                      let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                let cleanedClientID = clientID.padding(toLength: 12, withPad: "0", startingAt: 0)
+
+                // --- 关键修改：处理客户姓名 ---
+                var clientName: String
+                if let clientNameIndex = columnIndices["客户姓名"],
+                   let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !nameFromCSV.isEmpty {
+                    clientName = nameFromCSV
+                } else {
+                    clientName = cleanedClientID // 如果没有客户姓名，则使用客户号作为姓名
+                }
+
+                // --- 关键修改：处理备注 ---
+                let remarks = columnIndices["备注"].flatMap { values[safe: $0]?.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+                
+                // 创建新持仓记录
+                let newHolding = FundHolding(
+                    clientName: clientName,
+                    clientID: cleanedClientID,
+                    fundCode: cleanedFundCode,
+                    purchaseAmount: cleanedAmount,
+                    purchaseShares: cleanedShares,
+                    purchaseDate: purchaseDate,
+                    remarks: remarks
+                )
+                
+                // 添加到数据管理器
+                dataManager.holdings.append(newHolding)
+                importedCount += 1
+                
+                // 记录导入详情
+                fundService.addLog("导入记录: \(clientName)-\(cleanedFundCode) 金额: \(cleanedAmount) 份额: \(cleanedShares)")
+            }
+            
+            // 保存数据并记录结果
+            dataManager.saveData()
+            fundService.addLog("导入完成: 成功导入 \(importedCount) 条记录")
+            
+        } catch {
+            fundService.addLog("导入失败: \(error.localizedDescription)")
         }
     }
 }

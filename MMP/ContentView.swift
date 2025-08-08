@@ -23,6 +23,15 @@ struct ContentView: View {
                     }
                     .environmentObject(dataManager)
                     .environmentObject(fundService)
+
+                // 新增收藏夹标签页
+                FavoritesView()
+                    .tabItem {
+                        Image(systemName: "heart.fill")
+                        Text("收藏")
+                    }
+                    .environmentObject(dataManager)
+
                 ConfigView()
                     .tabItem {
                         Image(systemName: "gearshape")

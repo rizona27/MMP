@@ -124,11 +124,14 @@ struct SummaryView: View {
     @State private var isRefreshing = false
     @State private var unrecognizedFunds: [FundHolding] = []
     @State private var showingToast = false
+    @State private var isRefreshingAllUnrecognizedFunds = false
 
     @State private var selectedSortKey: SortKey = .none
     @State private var sortOrder: SortOrder = .descending
     
     @State private var expandedFundCodes: Set<String> = []
+    
+    @State private var isUnrecognizedFundsSectionExpanded: Bool = true
 
     private var persistentUnrecognizedFunds: [FundHolding] {
         if let data = UserDefaults.standard.data(forKey: "unrecognizedFunds"),
@@ -143,20 +146,11 @@ struct SummaryView: View {
             UserDefaults.standard.set(encoded, forKey: "unrecognizedFunds")
         }
     }
-    
-    // MARK: - 新增移除未识别基金的方法
-    private func removeUnrecognizedFund(fund: FundHolding) {
-        if let index = unrecognizedFunds.firstIndex(where: { $0.fundCode == fund.fundCode }) {
-            unrecognizedFunds.remove(at: index)
-            saveUnrecognizedFunds()
-        }
-    }
 
-    // 将recognizedFunds改为一个分组后的字典
     private var recognizedFunds: [String: [FundHolding]] {
-        let unrecognizedFundCodes = Set(unrecognizedFunds.map { $0.fundCode })
+        let recognizedFundCodes = Set(dataManager.holdings.filter { $0.isValid }.map { $0.fundCode })
         let filteredFunds = dataManager.holdings.filter { holding in
-            !unrecognizedFundCodes.contains(holding.fundCode)
+            recognizedFundCodes.contains(holding.fundCode)
         }
         
         var groupedFunds: [String: [FundHolding]] = [:]
@@ -169,7 +163,6 @@ struct SummaryView: View {
         return groupedFunds
     }
 
-    // 重新定义排序逻辑，现在排序的是基金代码
     private var sortedFundCodes: [String] {
         let codes = recognizedFunds.keys.sorted()
         
@@ -212,7 +205,6 @@ struct SummaryView: View {
         }
     }
     
-    // 使用新的 totalValue 计算持有收益率
     private func getHoldingReturn(for fund: FundHolding) -> Double? {
         guard fund.purchaseAmount > 0 else { return nil }
         return (fund.totalValue - fund.purchaseAmount) / fund.purchaseAmount * 100
@@ -273,144 +265,216 @@ struct SummaryView: View {
                 .padding(.vertical, 8)
                 .background(Color(.systemGroupedBackground))
                 
-                List {
-                    if dataManager.holdings.isEmpty && unrecognizedFunds.isEmpty {
-                        Text("当前没有基金持仓数据")
-                            .foregroundColor(.gray)
-                    } else {
-                        // 遍历排序后的基金代码
-                        ForEach(sortedFundCodes, id: \.self) { fundCode in
-                            if let funds = recognizedFunds[fundCode], let _ = funds.first {
-                                FundHoldingCard(
-                                    funds: funds,
-                                    isExpanded: Binding(
-                                        get: { expandedFundCodes.contains(fundCode) },
-                                        set: { isExpanded in
-                                            if isExpanded {
-                                                expandedFundCodes.insert(fundCode)
-                                            } else {
-                                                expandedFundCodes.remove(fundCode)
-                                            }
-                                        }
-                                    ),
-                                    selectedSortKey: selectedSortKey,
-                                    getHoldingReturn: getHoldingReturn
-                                )
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                            }
-                        }
-                    }
-                }
-                .listStyle(InsetGroupedListStyle())
-                .refreshable {
-                    await refreshFundReturns()
-                }
-
-                // MARK: - 更新后的未识别基金模块
-                if !unrecognizedFunds.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("未能识别基金:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        // 使用 ForEach 遍历并添加移除按钮
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack {
-                                ForEach(unrecognizedFunds, id: \.fundCode) { fund in
-                                    HStack(spacing: 4) {
-                                        Text(fund.fundCode)
-                                            .font(.caption.monospaced())
-                                            .foregroundColor(.secondary)
-                                        
-                                        Button(action: {
-                                            withAnimation {
-                                                removeUnrecognizedFund(fund: fund)
-                                            }
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.red)
-                                        }
-                                        .buttonStyle(BorderlessButtonStyle())
+                // MARK: - 基金列表，使用GeometryReader和ScrollView来防止溢出
+                GeometryReader { geometry in
+                    ScrollView {
+                        List {
+                            if dataManager.holdings.filter({ $0.isValid }).isEmpty {
+                                Text("当前没有基金持仓数据")
+                                    .foregroundColor(.gray)
+                            } else {
+                                ForEach(sortedFundCodes, id: \.self) { fundCode in
+                                    if let funds = recognizedFunds[fundCode], let _ = funds.first {
+                                        FundHoldingCard(
+                                            funds: funds,
+                                            isExpanded: Binding(
+                                                get: { expandedFundCodes.contains(fundCode) },
+                                                set: { isExpanded in
+                                                    if isExpanded {
+                                                        expandedFundCodes.insert(fundCode)
+                                                    } else {
+                                                        expandedFundCodes.remove(fundCode)
+                                                    }
+                                                }
+                                            ),
+                                            selectedSortKey: selectedSortKey,
+                                            getHoldingReturn: getHoldingReturn
+                                        )
+                                        .listRowSeparator(.hidden)
+                                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(.systemGray5))
-                                    .cornerRadius(8)
                                 }
                             }
                         }
+                        .listStyle(InsetGroupedListStyle())
+                        .frame(height: geometry.size.height)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                }
+                .refreshable {
+                    await refreshAllFunds()
+                }
+
+                if !unrecognizedFunds.isEmpty {
+                    HStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("未能识别基金:")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                Spacer()
+                                
+                                // MARK: - 一键刷新按钮
+                                Button(action: {
+                                    Task {
+                                        await refreshAllUnrecognizedFunds()
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        if isRefreshingAllUnrecognizedFunds {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                        } else {
+                                            Image(systemName: "arrow.counterclockwise.circle.fill")
+                                        }
+                                        Text("刷新")
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                }
+                                .buttonStyle(BorderlessButtonStyle())
+                                .disabled(isRefreshingAllUnrecognizedFunds)
+
+                                Button(action: {
+                                    withAnimation {
+                                        isUnrecognizedFundsSectionExpanded.toggle()
+                                    }
+                                }) {
+                                    Image(systemName: isUnrecognizedFundsSectionExpanded ? "chevron.up" : "chevron.down")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            // MARK: - 未识别基金列表（垂直折叠）
+                            if isUnrecognizedFundsSectionExpanded {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack {
+                                        ForEach(unrecognizedFunds, id: \.fundCode) { fund in
+                                            HStack(spacing: 4) {
+                                                Text(fund.fundCode)
+                                                    .font(.caption.monospaced())
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color(.systemGray5))
+                                            .cornerRadius(8)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                    }
                 }
             }
             .navigationBarHidden(true)
             .onAppear {
-                // 加载已保存的未识别基金
-                unrecognizedFunds = persistentUnrecognizedFunds
+                unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
+                if !unrecognizedFunds.isEmpty {
+                    isUnrecognizedFundsSectionExpanded = true
+                }
             }
             
             ToastView(message: "刷新成功！", isShowing: $showingToast)
-                .padding(.bottom, unrecognizedFunds.isEmpty ? 80 : 160)
+                .padding(.bottom, unrecognizedFunds.isEmpty || !isUnrecognizedFundsSectionExpanded ? 80 : 160)
         }
     }
     
     // MARK: - 操作方法
 
-    private func refreshFundReturns() async {
+    private func refreshAllFunds() async {
         isRefreshing = true
-        fundService.addLog("开始刷新基金收益率数据...")
+        fundService.addLog("开始全局刷新所有基金数据...")
 
-        let originalHoldings = dataManager.holdings
+        let allFundCodesToRefresh = Array(Set(dataManager.holdings.map { $0.fundCode }))
 
-        var updatedHoldings: [FundHolding] = []
-        var newlyUnrecognizedFunds: [FundHolding] = []
-
-        for var holding in originalHoldings {
-            let updatedFund = await fundService.fetchFundInfo(code: holding.fundCode)
-            
-            holding.fundName = updatedFund.fundName
-            holding.currentNav = updatedFund.currentNav
-            holding.navDate = updatedFund.navDate
-            holding.isValid = updatedFund.isValid
-            holding.navReturn1m = updatedFund.navReturn1m
-            holding.navReturn3m = updatedFund.navReturn3m
-            holding.navReturn6m = updatedFund.navReturn6m
-            holding.navReturn1y = updatedFund.navReturn1y
-            
-            if holding.isValid {
-                updatedHoldings.append(holding)
-            } else {
-                newlyUnrecognizedFunds.append(holding)
-            }
+        for code in allFundCodesToRefresh {
+            // MARK: - 修复点：调用 refreshSingleFund 时，不再传递 forceRefresh 参数
+            await refreshSingleFund(fundCode: code)
         }
-        
+
         await MainActor.run {
-            dataManager.holdings = updatedHoldings
-            
-            let currentUnrecognizedCodes = Set(unrecognizedFunds.map { $0.fundCode })
-            for fund in newlyUnrecognizedFunds {
-                if !currentUnrecognizedCodes.contains(fund.fundCode) {
-                    unrecognizedFunds.append(fund)
-                }
-            }
-            
-            dataManager.saveData()
+            unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
             saveUnrecognizedFunds()
+            
+            if !unrecognizedFunds.isEmpty {
+                isUnrecognizedFundsSectionExpanded = true
+            } else {
+                isUnrecognizedFundsSectionExpanded = false
+            }
+
             isRefreshing = false
-            fundService.addLog("基金收益率刷新完成")
+            fundService.addLog("所有基金刷新完成。")
             withAnimation {
                 showingToast = true
             }
+        }
+    }
+    
+    private func refreshAllUnrecognizedFunds() async {
+        isRefreshingAllUnrecognizedFunds = true
+        fundService.addLog("开始批量刷新所有未能识别的基金...")
+
+        // 复制一份基金代码列表，以便在循环中安全地操作
+        let fundCodesToRefresh = unrecognizedFunds.map { $0.fundCode }
+        
+        for code in fundCodesToRefresh {
+            // MARK: - 修复点：调用 refreshSingleFund 时，不再传递 forceRefresh 参数
+            await refreshSingleFund(fundCode: code)
+        }
+
+        await MainActor.run {
+            // MARK: - 修复点：刷新完成后，重新从DataManager中过滤出所有未识别的基金
+            unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
+            saveUnrecognizedFunds()
+            
+            if unrecognizedFunds.isEmpty {
+                isUnrecognizedFundsSectionExpanded = false
+            }
+            
+            isRefreshingAllUnrecognizedFunds = false
+            fundService.addLog("所有未能识别的基金刷新完成。")
+            withAnimation {
+                showingToast = true
+            }
+        }
+    }
+
+    // MARK: - 修复点：删除 forceRefresh 参数
+    private func refreshSingleFund(fundCode: String) async {
+        guard let index = dataManager.holdings.firstIndex(where: { $0.fundCode == fundCode }) else {
+            return
+        }
+
+        var updatedHolding = dataManager.holdings[index]
+        // MARK: - 修复点：调用 fundService.fetchFundInfo 时，不再传递 forceRefresh 参数
+        let fetchedFundInfo = await fundService.fetchFundInfo(code: fundCode)
+        
+        if fetchedFundInfo.isValid {
+            updatedHolding.fundName = fetchedFundInfo.fundName
+            updatedHolding.currentNav = fetchedFundInfo.currentNav
+            updatedHolding.navDate = fetchedFundInfo.navDate
+            updatedHolding.isValid = fetchedFundInfo.isValid
+            updatedHolding.navReturn1m = fetchedFundInfo.navReturn1m
+            updatedHolding.navReturn3m = fetchedFundInfo.navReturn3m
+            updatedHolding.navReturn6m = fetchedFundInfo.navReturn6m
+            updatedHolding.navReturn1y = fetchedFundInfo.navReturn1y
+        } else {
+            // 如果刷新失败，保持旧的数据，但确保isValid仍然是false
+            updatedHolding.isValid = false
+        }
+        
+        await MainActor.run {
+            dataManager.holdings[index] = updatedHolding
+            dataManager.saveData()
         }
     }
 }
@@ -421,6 +485,8 @@ struct FundHoldingCard: View {
     @Binding var isExpanded: Bool
     var selectedSortKey: SortKey
     var getHoldingReturn: (FundHolding) -> Double?
+    
+    @Environment(\.colorScheme) var colorScheme
     
     private var fund: FundHolding {
         funds.first!
@@ -492,7 +558,10 @@ struct FundHoldingCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [baseColor, .white]),
+                        gradient: Gradient(colors: [
+                            baseColor,
+                            colorScheme == .dark ? Color(.systemGray6) : .white
+                        ]),
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -572,10 +641,10 @@ struct FundHoldingCard: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(Color.white)
+                .background(Color(.secondarySystemBackground))
             }
         }
-        .background(Color.white)
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
     }

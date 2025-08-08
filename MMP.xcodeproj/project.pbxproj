@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A32C2D3E2E40AAD1009B7A0F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */; };
+		A32C2D402E40AAEC009B7A0F /* ManageFavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */; };
+		A32C2D422E40B131009B7A0F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D412E40B131009B7A0F /* SafariView.swift */; };
+		A32C2D442E40B5E2009B7A0F /* AddFavoriteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */; };
+		A32C2D462E40B5F7009B7A0F /* EditFavoriteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */; };
+		A32C2D482E40B6FC009B7A0F /* EditFavoritesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */; };
 		A32F7E902E3A04F10016A1D6 /* AddHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */; };
 		A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */; };
 		A32F7E942E3A051C0016A1D6 /* EditHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */; };
@@ -27,6 +33,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
+		A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageFavoritesView.swift; sourceTree = "<group>"; };
+		A32C2D412E40B131009B7A0F /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
+		A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFavoriteView.swift; sourceTree = "<group>"; };
+		A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditFavoriteView.swift; sourceTree = "<group>"; };
+		A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditFavoritesListView.swift; sourceTree = "<group>"; };
 		A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHoldingView.swift; sourceTree = "<group>"; };
 		A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageHoldingsView.swift; sourceTree = "<group>"; };
 		A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHoldingView.swift; sourceTree = "<group>"; };
@@ -112,6 +124,12 @@
 				A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */,
 				A3EEF58D2E3C422300EE105D /* AboutView.swift */,
 				A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */,
+				A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */,
+				A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */,
+				A32C2D412E40B131009B7A0F /* SafariView.swift */,
+				A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */,
+				A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */,
+				A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */,
 			);
 			path = config;
 			sourceTree = "<group>";
@@ -188,16 +206,22 @@
 			files = (
 				A3B112472E39048D00FD9CDA /* DataManager.swift in Sources */,
 				A3FC14912E3E6BFE00545617 /* SummaryView.swift in Sources */,
+				A32C2D482E40B6FC009B7A0F /* EditFavoritesListView.swift in Sources */,
+				A32C2D402E40AAEC009B7A0F /* ManageFavoritesView.swift in Sources */,
 				A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */,
 				A3B1124B2E3904EF00FD9CDA /* ClientView.swift in Sources */,
 				A3B112512E390A6800FD9CDA /* APILogView.swift in Sources */,
+				A32C2D462E40B5F7009B7A0F /* EditFavoriteView.swift in Sources */,
 				A32F7E962E3A09B10016A1D6 /* HoldingRow.swift in Sources */,
+				A32C2D442E40B5E2009B7A0F /* AddFavoriteView.swift in Sources */,
 				A32F7E942E3A051C0016A1D6 /* EditHoldingView.swift in Sources */,
 				A3B1124D2E39060900FD9CDA /* ConfigView.swift in Sources */,
 				A3EEF58E2E3C422300EE105D /* AboutView.swift in Sources */,
+				A32C2D422E40B131009B7A0F /* SafariView.swift in Sources */,
 				A3B1124F2E3906D100FD9CDA /* FundModels.swift in Sources */,
 				A3FC14932E3E6FAC00545617 /* TableColumn.swift in Sources */,
 				A3B112492E3904B500FD9CDA /* FundService.swift in Sources */,
+				A32C2D3E2E40AAD1009B7A0F /* FavoritesView.swift in Sources */,
 				A3425FDE2E3854DD00E5A762 /* ContentView.swift in Sources */,
 				A3425FDC2E3854DD00E5A762 /* MMPApp.swift in Sources */,
 				A32F7E902E3A04F10016A1D6 /* AddHoldingView.swift in Sources */,
@@ -341,16 +365,18 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MMP/Info.plist;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = rizona.MMP;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -364,25 +390,31 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MMP/Preview Content\"";
-				DEVELOPMENT_TEAM = 8QXX7UMS83;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 5TSZ2Z5A59;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MMP/Info.plist;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
-				PRODUCT_BUNDLE_IDENTIFIER = rizona.MMP;
+				MARKETING_VERSION = 1.0.7;
+				PRODUCT_BUNDLE_IDENTIFIER = "nsk-1439.v-team.cn";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = 202507232233135325336;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
