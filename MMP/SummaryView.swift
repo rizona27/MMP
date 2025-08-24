@@ -1,4 +1,3 @@
-// SummaryView.swift
 import SwiftUI
 import Foundation
 
@@ -11,7 +10,7 @@ enum SortKey: String, CaseIterable, Identifiable {
     case navReturn1y = "近1年"
 
     var id: String { self.rawValue }
-    
+
     var keyPathString: String? {
         switch self {
         case .navReturn1m: return "navReturn1m"
@@ -28,7 +27,7 @@ enum SortKey: String, CaseIterable, Identifiable {
         case .navReturn1m: return .navReturn3m
         case .navReturn3m: return .navReturn6m
         case .navReturn6m: return .navReturn1y
-        case .navReturn1y: return .none
+        case .navReturn1y: return .navReturn1y
         }
     }
 }
@@ -57,6 +56,7 @@ struct SummaryView: View {
     
     @State private var isUnrecognizedFundsSectionExpanded: Bool = true
     @State private var refreshProgressText: String = ""
+    @State private var showingUnrecognizedFundsAlert = false
     
     private let calendar = Calendar.current
 
@@ -146,7 +146,7 @@ struct SummaryView: View {
         case .navReturn1y: return "calendar.badge.clock"
         }
     }
-
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
@@ -162,9 +162,10 @@ struct SummaryView: View {
                             HStack {
                                 Image(systemName: sortButtonIconName())
                                     .foregroundColor(.primary)
+                                    .font(.system(size: 14))
                                 if selectedSortKey != .none {
                                     Text(selectedSortKey.rawValue)
-                                        .font(.subheadline)
+                                        .font(.system(size: 14))
                                         .foregroundColor(.primary)
                                 }
                             }
@@ -199,6 +200,17 @@ struct SummaryView: View {
                                 .padding(.trailing, 8)
                         }
                         
+                        // 未识别基金提示按钮
+                        if !unrecognizedFunds.isEmpty {
+                            Button(action: {
+                                showingUnrecognizedFundsAlert = true
+                            }) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 16)) // 调整为16号字体
+                            }
+                        }
+                        
                         // 右侧刷新按钮
                         Button(action: {
                             Task {
@@ -210,7 +222,7 @@ struct SummaryView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18, weight: .medium))
+                                    .font(.system(size: 16, weight: .medium)) // 调整为16号字体
                             }
                         }
                         .disabled(isRefreshing)
@@ -307,86 +319,26 @@ struct SummaryView: View {
                         }
                     }
                     .listStyle(PlainListStyle())
-                    
-                    // 未识别基金区域
-                    if !unrecognizedFunds.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
-                                Text("未能识别基金:")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-
-                                Spacer()
-                                
-                                // 一键刷新按钮
-                                Button(action: {
-                                    Task {
-                                        await refreshAllUnrecognizedFunds()
-                                    }
-                                }) {
-                                    HStack(spacing: 4) {
-                                        if isRefreshingAllUnrecognizedFunds {
-                                            ProgressView()
-                                                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                                        } else {
-                                            Image(systemName: "arrow.counterclockwise.circle.fill")
-                                        }
-                                        Text("刷新")
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .disabled(isRefreshingAllUnrecognizedFunds)
-
-                                Button(action: {
-                                    withAnimation {
-                                        isUnrecognizedFundsSectionExpanded.toggle()
-                                    }
-                                }) {
-                                    Image(systemName: isUnrecognizedFundsSectionExpanded ? "chevron.up" : "chevron.down")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            // 未识别基金列表（垂直折叠）
-                            if isUnrecognizedFundsSectionExpanded {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack {
-                                        ForEach(unrecognizedFunds, id: \.fundCode) { fund in
-                                            HStack(spacing: 4) {
-                                                Text(fund.fundCode)
-                                                    .font(.caption.monospaced())
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color(.systemGray5))
-                                            .cornerRadius(8)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(Color(.tertiarySystemBackground))
-                        .cornerRadius(10)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                    }
+                    // 移除 List 外层的圆角边框
+                    .background(Color(.systemGroupedBackground))
                 }
                 .navigationBarHidden(true)
                 .onAppear {
                     unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
-                    if !unrecognizedFunds.isEmpty {
-                        isUnrecognizedFundsSectionExpanded = true
-                    }
+                }
+                .alert("未能识别的基金", isPresented: $showingUnrecognizedFundsAlert) {
+                    Button("刷新", action: {
+                        Task {
+                            await refreshAllUnrecognizedFunds()
+                        }
+                    })
+                    Button("关闭", role: .cancel) { }
+                } message: {
+                    Text(unrecognizedFunds.map { $0.fundCode }.joined(separator: "\n"))
                 }
                 
                 ToastView(message: "刷新成功！", isShowing: $showingToast)
-                    .padding(.bottom, unrecognizedFunds.isEmpty || !isUnrecognizedFundsSectionExpanded ? 80 : 160)
+                    .padding(.bottom, 80)
             }
         }
     }
@@ -430,12 +382,6 @@ struct SummaryView: View {
             unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
             saveUnrecognizedFunds()
             
-            if !unrecognizedFunds.isEmpty {
-                isUnrecognizedFundsSectionExpanded = true
-            } else {
-                isUnrecognizedFundsSectionExpanded = false
-            }
-
             isRefreshing = false
             refreshProgressText = ""
             fundService.addLog("所有基金刷新完成。", type: .info)
@@ -474,10 +420,6 @@ struct SummaryView: View {
         await MainActor.run {
             unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
             saveUnrecognizedFunds()
-            
-            if unrecognizedFunds.isEmpty {
-                isUnrecognizedFundsSectionExpanded = false
-            }
             
             isRefreshingAllUnrecognizedFunds = false
             fundService.addLog("所有未能识别的基金刷新完成。", type: .info)
@@ -546,12 +488,12 @@ struct FundHoldingCardLabel: View {
             HStack(spacing: 8) {
                 Text("**\(fund.fundName)**")
                     .font(.subheadline)
-                    .foregroundColor(baseColor.textColorBasedOnLuminance())
+                    .foregroundColor(colorScheme == .dark ? .white : .black) // 深色模式白色，浅色模式黑色
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(fund.fundCode)
                     .font(.caption.monospaced())
-                    .foregroundColor(baseColor.textColorBasedOnLuminance().opacity(0.8))
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // 深色模式白色，浅色模式黑色
                 Spacer()
             }
             .padding(.vertical, 8)
