@@ -30,8 +30,8 @@ struct TopPerformersView: View {
     @EnvironmentObject var dataManager: DataManager
     @Environment(\.dismiss) var dismiss
 
-    // 筛选条件的状态变量
-    @State private var fundCodeFilter: String = ""
+    // 筛选条件的用户输入状态变量
+    @State private var fundCodeFilterInput: String = ""
     @State private var minAmountInput: String = ""
     @State private var maxAmountInput: String = ""
     @State private var minDaysInput: String = ""
@@ -39,17 +39,38 @@ struct TopPerformersView: View {
     @State private var minProfitInput: String = ""
     @State private var maxProfitInput: String = ""
 
+    // 实际用于筛选的条件变量
+    @State private var appliedFundCodeFilter: String = ""
+    @State private var appliedMinAmount: String = ""
+    @State private var appliedMaxAmount: String = ""
+    @State private var appliedMinDays: String = ""
+    @State private var appliedMaxDays: String = ""
+    @State private var appliedMinProfit: String = ""
+    @State private var appliedMaxProfit: String = ""
+    
+    // 筛选按钮点击后执行筛选
+    private func applyFilters() {
+        appliedFundCodeFilter = fundCodeFilterInput
+        appliedMinAmount = minAmountInput
+        appliedMaxAmount = maxAmountInput
+        appliedMinDays = minDaysInput
+        appliedMaxDays = maxDaysInput
+        appliedMinProfit = minProfitInput
+        appliedMaxProfit = maxProfitInput
+        hideKeyboard()
+    }
+
     private var zeroProfitIndex: Int? {
         filteredAndSortedHoldings.firstIndex(where: { $0.profit.annualized < 0 })
     }
 
     private var filteredAndSortedHoldings: [(holding: FundHolding, profit: ProfitResult)] {
-        let minAmount = Double(minAmountInput).map { $0 * 10000 }
-        let maxAmount = Double(maxAmountInput).map { $0 * 10000 }
-        let minDays = Int(minDaysInput)
-        let maxDays = Int(maxDaysInput)
-        let minProfit = Double(minProfitInput)
-        let maxProfit = Double(maxProfitInput)
+        let minAmount = Double(appliedMinAmount).map { $0 * 10000 }
+        let maxAmount = Double(appliedMaxAmount).map { $0 * 10000 }
+        let minDays = Int(appliedMinDays)
+        let maxDays = Int(appliedMaxDays)
+        let minProfit = Double(appliedMinProfit)
+        let maxProfit = Double(appliedMaxProfit)
 
         var results: [(holding: FundHolding, profit: ProfitResult)] = []
         for holding in dataManager.holdings where holding.currentNav > 0 && holding.purchaseAmount > 0 {
@@ -59,7 +80,7 @@ struct TopPerformersView: View {
             let purchaseAmount = item.holding.purchaseAmount
             let daysHeld = daysBetween(start: item.holding.purchaseDate, end: Date())
 
-            if !fundCodeFilter.isEmpty && !item.holding.fundCode.localizedCaseInsensitiveContains(fundCodeFilter) && !item.holding.fundName.localizedCaseInsensitiveContains(fundCodeFilter) {
+            if !appliedFundCodeFilter.isEmpty && !item.holding.fundCode.localizedCaseInsensitiveContains(appliedFundCodeFilter) && !item.holding.fundName.localizedCaseInsensitiveContains(appliedFundCodeFilter) {
                 continue
             }
             if let min = minAmount, purchaseAmount < min {
@@ -102,7 +123,7 @@ struct TopPerformersView: View {
                     // 筛选条件输入区域 - 重新排版
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 12) {
-                            FilterFieldView(title: "代码/名称", placeholder: "输入代码或名称", text: $fundCodeFilter)
+                            FilterFieldView(title: "代码/名称", placeholder: "输入代码或名称", text: $fundCodeFilterInput)
                             FilterRangeFieldView(title: "金额(万)", minPlaceholder: "最低", maxPlaceholder: "最高", minText: $minAmountInput, maxText: $maxAmountInput, keyboardType: .decimalPad)
                         }
                         HStack(spacing: 12) {
@@ -170,6 +191,7 @@ struct TopPerformersView: View {
                                         Text(item.holding.fundCode)
                                             .font(.system(size: 12, weight: .bold))
                                             .lineLimit(1)
+                                            .truncationMode(.tail)
                                         Text(item.holding.fundName)
                                             .font(.system(size: 10))
                                             .foregroundColor(.secondary)
@@ -228,53 +250,62 @@ struct TopPerformersView: View {
                         Image(systemName: "chevron.backward")
                     }
                 }
+                
+                // 新增的筛选按钮（对号图标）
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        applyFilters()
+                    } label: {
+                        Image(systemName: "checkmark.circle")
+                    }
+                }
             }
         }
     }
-}
-
-// MARK: - 筛选器视图
-
-struct FilterFieldView: View {
-    var title: String
-    var placeholder: String
-    @Binding var text: String
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .font(.system(size: 14))
+    // MARK: - 筛选器视图 (移动到这里)
+
+    struct FilterFieldView: View {
+        var title: String
+        var placeholder: String
+        @Binding var text: String
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                TextField(placeholder, text: $text)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.system(size: 14))
+            }
         }
     }
-}
 
-struct FilterRangeFieldView: View {
-    var title: String
-    var minPlaceholder: String
-    var maxPlaceholder: String
-    @Binding var minText: String
-    @Binding var maxText: String
-    var keyboardType: UIKeyboardType
+    struct FilterRangeFieldView: View {
+        var title: String
+        var minPlaceholder: String
+        var maxPlaceholder: String
+        @Binding var minText: String
+        @Binding var maxText: String
+        var keyboardType: UIKeyboardType
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-            HStack(spacing: 8) {
-                TextField(minPlaceholder, text: $minText)
-                    .keyboardType(keyboardType)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.system(size: 14))
-                Text("-")
-                TextField(maxPlaceholder, text: $maxText)
-                    .keyboardType(keyboardType)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.system(size: 14))
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    TextField(minPlaceholder, text: $minText)
+                        .keyboardType(keyboardType)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 14))
+                    Text("-")
+                    TextField(maxPlaceholder, text: $maxText)
+                        .keyboardType(keyboardType)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 14))
+                }
             }
         }
     }

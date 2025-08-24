@@ -19,107 +19,111 @@ struct FavoriteItem: Identifiable, Codable {
 }
 
 class DataManager: ObservableObject {
-    @Published var holdings: [FundHolding] = [] {
-        didSet {
-            saveData()
-        }
-    }
-    // 新增用于存储收藏夹数据的数组
-    @Published var favorites: [FavoriteItem] = [] {
-        didSet {
-            saveData()
-        }
-    }
+    @Published var holdings: [FundHolding] = []
+    @Published var favorites: [FavoriteItem] = []
     
     private let holdingsKey = "fundHoldings"
-    private let favoritesKey = "Favorites" // 新增收藏夹数据的 UserDefaults Key
+    private let favoritesKey = "Favorites"
     
     init() {
         loadData()
     }
     
-    // 加载数据
+    // 加载数据，优化为一次性加载并赋值
     func loadData() {
-        // 加载持仓数据
+        var decodedHoldings: [FundHolding] = []
         if let data = UserDefaults.standard.data(forKey: holdingsKey) {
             do {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
-                holdings = try decoder.decode([FundHolding].self, from: data)
-                print("DataManager: 数据加载成功。总持仓数: \(holdings.count)")
+                decodedHoldings = try decoder.decode([FundHolding].self, from: data)
+                print("DataManager: 持仓数据加载成功。总持仓数: \(decodedHoldings.count)")
             } catch {
-                print("DataManager: 数据加载失败或解码错误: \(error.localizedDescription)")
-                holdings = []
+                print("DataManager: 持仓数据加载失败或解码错误: \(error.localizedDescription)")
             }
         } else {
-            print("DataManager: 没有找到 UserDefaults 中的数据。")
+            print("DataManager: 没有找到 UserDefaults 中的持仓数据。")
         }
         
-        // 加载收藏夹数据
+        var decodedFavorites: [FavoriteItem] = []
         if let savedFavorites = UserDefaults.standard.data(forKey: favoritesKey) {
-            if let decodedFavorites = try? JSONDecoder().decode([FavoriteItem].self, from: savedFavorites) {
-                favorites = decodedFavorites
-                return
+            if let decodedData = try? JSONDecoder().decode([FavoriteItem].self, from: savedFavorites) {
+                decodedFavorites = decodedData
+                print("DataManager: 收藏夹数据加载成功。总收藏数: \(decodedFavorites.count)")
+            } else {
+                print("DataManager: 收藏夹数据解码失败。")
             }
-        }
-        print("DataManager: 没有找到 UserDefaults 中的收藏夹数据。")
-        favorites = []
-    }
-    
-    // 保存数据
-    func saveData() {
-        // 保存持仓数据
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(holdings)
-            UserDefaults.standard.set(data, forKey: holdingsKey)
-            print("DataManager: 持仓数据保存成功。")
-        } catch {
-            print("DataManager: 持仓数据保存失败或编码错误: \(error.localizedDescription)")
+        } else {
+            print("DataManager: 没有找到 UserDefaults 中的收藏夹数据。")
         }
         
-        // 保存收藏夹数据
-        if let encodedFavorites = try? JSONEncoder().encode(favorites) {
-            UserDefaults.standard.set(encodedFavorites, forKey: favoritesKey)
-            print("DataManager: 收藏夹数据保存成功。")
+        // 在这里一次性更新 @Published 属性，从而减少 UI 刷新次数
+        self.holdings = decodedHoldings
+        self.favorites = decodedFavorites
+    }
+    
+    // 保存数据，优化为统一处理
+    func saveData() {
+        do {
+            let holdingsEncoder = JSONEncoder()
+            holdingsEncoder.dateEncodingStrategy = .iso8601
+            let holdingsData = try holdingsEncoder.encode(self.holdings)
+            UserDefaults.standard.set(holdingsData, forKey: holdingsKey)
+            
+            let favoritesEncoder = JSONEncoder()
+            let favoritesData = try favoritesEncoder.encode(self.favorites)
+            UserDefaults.standard.set(favoritesData, forKey: favoritesKey)
+            
+            print("DataManager: 所有数据保存成功。")
+        } catch {
+            print("DataManager: 数据保存失败或编码错误: \(error.localizedDescription)")
         }
     }
     
-    // 添加新的持仓
+    // ... 其他方法保持不变
     func addHolding(_ holding: FundHolding) {
-        holdings.append(holding)
+        // 先在临时数组中添加，再整体更新，以减少 UI 刷新
+        var tempHoldings = self.holdings
+        tempHoldings.append(holding)
+        self.holdings = tempHoldings
+        self.saveData()
         print("DataManager: 添加新持仓: \(holding.fundCode) - \(holding.clientName)")
     }
     
-    // 更新持仓
     func updateHolding(_ updatedHolding: FundHolding) {
         if let index = holdings.firstIndex(where: { $0.id == updatedHolding.id }) {
-            holdings[index] = updatedHolding
+            var tempHoldings = self.holdings
+            tempHoldings[index] = updatedHolding
+            self.holdings = tempHoldings
+            self.saveData()
             print("DataManager: 更新持仓: \(updatedHolding.fundCode) - \(updatedHolding.clientName)")
         }
     }
     
-    // 删除持仓
     func deleteHolding(at offsets: IndexSet) {
-        holdings.remove(atOffsets: offsets)
+        var tempHoldings = self.holdings
+        tempHoldings.remove(atOffsets: offsets)
+        self.holdings = tempHoldings
+        self.saveData()
         print("DataManager: 删除持仓。")
     }
-    
-    // 切换基金的置顶状态
+
     func togglePinStatus(forHoldingId id: UUID) {
         if let index = holdings.firstIndex(where: { $0.id == id }) {
-            holdings[index].isPinned.toggle()
-            if holdings[index].isPinned {
-                holdings[index].pinnedTimestamp = Date()
+            var tempHoldings = self.holdings
+            tempHoldings[index].isPinned.toggle()
+            if tempHoldings[index].isPinned {
+                tempHoldings[index].pinnedTimestamp = Date()
             } else {
-                holdings[index].pinnedTimestamp = nil
+                tempHoldings[index].pinnedTimestamp = nil
             }
-            print("DataManager: 持仓 \(holdings[index].fundCode) 置顶状态切换为 \(holdings[index].isPinned)。")
+            self.holdings = tempHoldings
+            self.saveData()
+            print("DataManager: 持仓 \(tempHoldings[index].fundCode) 置顶状态切换为 \(tempHoldings[index].isPinned)。")
         }
     }
 
-    // 计算单个基金的收益 (绝对收益和年化收益率)
+    // ... calculateProfit 方法保持不变
     func calculateProfit(for holding: FundHolding) -> ProfitResult {
         guard holding.purchaseShares > 0 && holding.currentNav >= 0 && holding.purchaseAmount > 0 else {
             return ProfitResult(absolute: 0.0, annualized: 0.0)

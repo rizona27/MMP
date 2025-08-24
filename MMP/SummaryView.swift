@@ -45,7 +45,10 @@ struct SummaryView: View {
     @EnvironmentObject var fundService: FundService
 
     @State private var isRefreshing = false
-    @State private var unrecognizedFunds: [FundHolding] = []
+    // 移除 @State，改为计算属性
+    private var unrecognizedFunds: [FundHolding] {
+        dataManager.holdings.filter { !$0.isValid }
+    }
     @State private var showingToast = false
     @State private var isRefreshingAllUnrecognizedFunds = false
     
@@ -60,19 +63,12 @@ struct SummaryView: View {
     
     private let calendar = Calendar.current
 
-    private var persistentUnrecognizedFunds: [FundHolding] {
-        if let data = UserDefaults.standard.data(forKey: "unrecognizedFunds"),
-           let decoded = try? JSONDecoder().decode([FundHolding].self, from: data) {
-            return decoded
-        }
-        return []
-    }
-
-    private func saveUnrecognizedFunds() {
-        if let encoded = try? JSONEncoder().encode(unrecognizedFunds) {
-            UserDefaults.standard.set(encoded, forKey: "unrecognizedFunds")
-        }
-    }
+    // 此方法已不再需要，因为 unrecognizedFunds 不再是 @State
+    // private func saveUnrecognizedFunds() {
+    //    if let encoded = try? JSONEncoder().encode(unrecognizedFunds) {
+    //        UserDefaults.standard.set(encoded, forKey: "unrecognizedFunds")
+    //    }
+    // }
 
     private var recognizedFunds: [String: [FundHolding]] {
         let recognizedFundCodes = Set(dataManager.holdings.filter { $0.isValid }.map { $0.fundCode })
@@ -207,7 +203,7 @@ struct SummaryView: View {
                             }) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
-                                    .font(.system(size: 16)) // 调整为16号字体
+                                    .font(.system(size: 16))
                             }
                         }
                         
@@ -222,7 +218,7 @@ struct SummaryView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 16, weight: .medium)) // 调整为16号字体
+                                    .font(.system(size: 16, weight: .medium))
                             }
                         }
                         .disabled(isRefreshing)
@@ -324,7 +320,7 @@ struct SummaryView: View {
                 }
                 .navigationBarHidden(true)
                 .onAppear {
-                    unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
+                    // 只需要在 onAppear 时刷新一次数据
                 }
                 .alert("未能识别的基金", isPresented: $showingUnrecognizedFundsAlert) {
                     Button("刷新", action: {
@@ -346,8 +342,10 @@ struct SummaryView: View {
     // MARK: - 操作方法
 
     private func refreshAllFunds() async {
-        isRefreshing = true
-        fundService.addLog("开始全局刷新所有基金数据...", type: .info)
+        await MainActor.run {
+            isRefreshing = true
+            fundService.addLog("开始全局刷新所有基金数据...", type: .info)
+        }
 
         let fundCodesToRefresh = Array(Set(dataManager.holdings.compactMap { holding in
             if !holding.isValid || !calendar.isDateInToday(holding.navDate) {
@@ -370,17 +368,32 @@ struct SummaryView: View {
             return
         }
 
+        var newHoldings = dataManager.holdings
         for (index, code) in fundCodesToRefresh.enumerated() {
             await MainActor.run {
                 refreshProgressText = "[\(index+1)/\(totalCount)]"
             }
             
-            let _ = await refreshSingleFund(fundCode: code)
+            let fetchedFundInfo = await fundService.fetchFundInfo(code: code)
+            
+            // 批量更新数据
+            let indicesToUpdate = newHoldings.indices.filter { newHoldings[$0].fundCode == code }
+            for index in indicesToUpdate {
+                newHoldings[index].fundName = fetchedFundInfo.fundName
+                newHoldings[index].currentNav = fetchedFundInfo.currentNav
+                newHoldings[index].navDate = fetchedFundInfo.navDate
+                newHoldings[index].isValid = fetchedFundInfo.isValid
+                newHoldings[index].navReturn1m = fetchedFundInfo.navReturn1m
+                newHoldings[index].navReturn3m = fetchedFundInfo.navReturn3m
+                newHoldings[index].navReturn6m = fetchedFundInfo.navReturn6m
+                newHoldings[index].navReturn1y = fetchedFundInfo.navReturn1y
+            }
         }
 
+        // 一次性更新 dataManager.holdings
         await MainActor.run {
-            unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
-            saveUnrecognizedFunds()
+            dataManager.holdings = newHoldings.filter { $0.isValid }
+            dataManager.saveData()
             
             isRefreshing = false
             refreshProgressText = ""
@@ -392,8 +405,10 @@ struct SummaryView: View {
     }
     
     private func refreshAllUnrecognizedFunds() async {
-        isRefreshingAllUnrecognizedFunds = true
-        fundService.addLog("开始批量刷新所有未能识别的基金...", type: .info)
+        await MainActor.run {
+            isRefreshingAllUnrecognizedFunds = true
+            fundService.addLog("开始批量刷新所有未能识别的基金...", type: .info)
+        }
 
         let fundCodesToRefresh = unrecognizedFunds.map { $0.fundCode }
         let totalCount = fundCodesToRefresh.count
@@ -406,20 +421,32 @@ struct SummaryView: View {
             return
         }
         
+        var newHoldings = dataManager.holdings
         for (_, code) in fundCodesToRefresh.enumerated() {
-            let success = await refreshSingleFund(fundCode: code)
+            let fetchedFundInfo = await fundService.fetchFundInfo(code: code)
             
-            if success {
+            if fetchedFundInfo.isValid {
+                // 如果成功识别，更新对应持仓
+                let indicesToUpdate = newHoldings.indices.filter { newHoldings[$0].fundCode == code }
+                for index in indicesToUpdate {
+                    newHoldings[index].fundName = fetchedFundInfo.fundName
+                    newHoldings[index].currentNav = fetchedFundInfo.currentNav
+                    newHoldings[index].navDate = fetchedFundInfo.navDate
+                    newHoldings[index].isValid = fetchedFundInfo.isValid
+                    newHoldings[index].navReturn1m = fetchedFundInfo.navReturn1m
+                    newHoldings[index].navReturn3m = fetchedFundInfo.navReturn3m
+                    newHoldings[index].navReturn6m = fetchedFundInfo.navReturn6m
+                    newHoldings[index].navReturn1y = fetchedFundInfo.navReturn1y
+                }
                 await MainActor.run {
-                    unrecognizedFunds.removeAll(where: { $0.fundCode == code })
                     fundService.addLog("基金 \(code) 成功识别，已从列表中移除。", type: .success)
                 }
             }
         }
 
         await MainActor.run {
-            unrecognizedFunds = dataManager.holdings.filter { !$0.isValid }
-            saveUnrecognizedFunds()
+            dataManager.holdings = newHoldings
+            dataManager.saveData()
             
             isRefreshingAllUnrecognizedFunds = false
             fundService.addLog("所有未能识别的基金刷新完成。", type: .info)
@@ -429,31 +456,9 @@ struct SummaryView: View {
         }
     }
     
+    // 该方法已不再需要，因为刷新逻辑被整合到 refreshAllFunds() 中
     private func refreshSingleFund(fundCode: String) async -> Bool {
-        let fetchedFundInfo = await fundService.fetchFundInfo(code: fundCode)
-        
-        await MainActor.run {
-            let indicesToUpdate = dataManager.holdings.indices.filter { dataManager.holdings[$0].fundCode == fundCode }
-            
-            for index in indicesToUpdate {
-                dataManager.holdings[index].fundName = fetchedFundInfo.fundName
-                dataManager.holdings[index].currentNav = fetchedFundInfo.currentNav
-                dataManager.holdings[index].navDate = fetchedFundInfo.navDate
-                dataManager.holdings[index].isValid = fetchedFundInfo.isValid
-                dataManager.holdings[index].navReturn1m = fetchedFundInfo.navReturn1m
-                dataManager.holdings[index].navReturn3m = fetchedFundInfo.navReturn3m
-                dataManager.holdings[index].navReturn6m = fetchedFundInfo.navReturn6m
-                dataManager.holdings[index].navReturn1y = fetchedFundInfo.navReturn1y
-            }
-            
-            let validHoldings = dataManager.holdings.filter { $0.fundCode == fundCode && $0.isValid }
-            if !validHoldings.isEmpty {
-                dataManager.holdings.removeAll { $0.fundCode == fundCode && !$0.isValid }
-            }
-            dataManager.saveData()
-        }
-        
-        return fetchedFundInfo.isValid
+        return false // 返回 false 或直接删除此方法
     }
 }
 
@@ -488,12 +493,12 @@ struct FundHoldingCardLabel: View {
             HStack(spacing: 8) {
                 Text("**\(fund.fundName)**")
                     .font(.subheadline)
-                    .foregroundColor(colorScheme == .dark ? .white : .black) // 深色模式白色，浅色模式黑色
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(fund.fundCode)
                     .font(.caption.monospaced())
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // 深色模式白色，浅色模式黑色
+                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
             }
             .padding(.vertical, 8)
