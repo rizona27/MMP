@@ -96,22 +96,24 @@
 		A3425FDA2E3854DD00E5A762 /* MMP */ = {
 			isa = PBXGroup;
 			children = (
-				A3948F9C2E54B0F600C5768F /* MMP.entitlements */,
+				A3425FDF2E3854E300E5A762 /* Assets.xcassets */,
 				A3EEF5992E3CD73A00EE105D /* Info.plist */,
+				A3948F9C2E54B0F600C5768F /* MMP.entitlements */,
 				A3425FDB2E3854DD00E5A762 /* MMPApp.swift */,
 				A3425FDD2E3854DD00E5A762 /* ContentView.swift */,
-				A3425FDF2E3854E300E5A762 /* Assets.xcassets */,
+				A3B1124A2E3904EE00FD9CDA /* ClientView.swift */,
+				A39EE4652E56E7E3001A0F4C /* TopPerformersView.swift */,
+				A3FC14902E3E6BFE00545617 /* SummaryView.swift */,
+				A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */,
+				A3B1124C2E39060900FD9CDA /* ConfigView.swift */,
 				A3FC14962E3EF2AA00545617 /* config */,
-				A3425FE12E3854E300E5A762 /* Preview Content */,
 				A3B112462E39048D00FD9CDA /* DataManager.swift */,
 				A32F7E952E3A09B10016A1D6 /* HoldingRow.swift */,
 				A3B112482E3904B500FD9CDA /* FundService.swift */,
-				A3B1124A2E3904EE00FD9CDA /* ClientView.swift */,
 				A3B1124E2E3906D100FD9CDA /* FundModels.swift */,
 				A3FC14922E3E6FAC00545617 /* TableColumn.swift */,
-				A3FC14902E3E6BFE00545617 /* SummaryView.swift */,
 				A3948F9D2E54C43800C5768F /* ToastView.swift */,
-				A39EE4652E56E7E3001A0F4C /* TopPerformersView.swift */,
+				A3425FE12E3854E300E5A762 /* Preview Content */,
 			);
 			path = MMP;
 			sourceTree = "<group>";
@@ -127,18 +129,16 @@
 		A3FC14962E3EF2AA00545617 /* config */ = {
 			isa = PBXGroup;
 			children = (
-				A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */,
-				A3B1124C2E39060900FD9CDA /* ConfigView.swift */,
-				A3B112502E390A6800FD9CDA /* APILogView.swift */,
-				A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */,
 				A3EEF58D2E3C422300EE105D /* AboutView.swift */,
-				A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */,
-				A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */,
-				A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */,
-				A32C2D412E40B131009B7A0F /* SafariView.swift */,
+				A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */,
+				A3B112502E390A6800FD9CDA /* APILogView.swift */,
 				A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */,
+				A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */,
 				A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */,
 				A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */,
+				A32C2D412E40B131009B7A0F /* SafariView.swift */,
+				A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */,
+				A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */,
 			);
 			path = config;
 			sourceTree = "<group>";

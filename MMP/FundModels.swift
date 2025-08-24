@@ -62,23 +62,3 @@ struct FundHolding: Identifiable, Codable {
         self.navReturn1y = navReturn1y
     }
 }
-
-// 定义日志类型枚举，用于分类日志
-enum LogType: String, Codable {
-    case info, network, cache, success, error
-}
-
-// 定义结构化日志模型
-struct LogEntry: Identifiable, Codable, Hashable {
-    var id = UUID()
-    let message: String
-    let type: LogType
-    let timestamp: Date
-    
-    // 计算属性，用于在UI中显示格式化的日志消息
-    var formattedMessage: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return "[\(formatter.string(from: timestamp))] [\(type.rawValue.uppercased())] \(message)"
-    }
-}

@@ -1,9 +1,8 @@
+// SummaryView.swift
 import SwiftUI
-import Foundation // 用于 Date 的 Calendar
+import Foundation
 
-// MARK: - 通用辅助视图和枚举 (只保留未在 ClientView.swift 中定义的)
-
-// 枚举 SortKey (保持不变)
+// MARK: - 通用辅助视图和枚举
 enum SortKey: String, CaseIterable, Identifiable {
     case none = "无排序"
     case navReturn1m = "近1月"
@@ -34,7 +33,6 @@ enum SortKey: String, CaseIterable, Identifiable {
     }
 }
 
-// 枚举 SortOrder (保持不变)
 enum SortOrder: String, CaseIterable, Identifiable {
     case ascending = "升序"
     case descending = "降序"
@@ -298,7 +296,7 @@ struct SummaryView: View {
                                         FundHoldingCardLabel(
                                             fund: funds.first!,
                                             selectedSortKey: selectedSortKey,
-                                            getColumnValue: getColumnValue // 已修复：将函数作为参数传递
+                                            getColumnValue: getColumnValue
                                         )
                                     }
                                     .listRowSeparator(.hidden)
@@ -400,7 +398,6 @@ struct SummaryView: View {
         fundService.addLog("开始全局刷新所有基金数据...", type: .info)
 
         let fundCodesToRefresh = Array(Set(dataManager.holdings.compactMap { holding in
-            // 只刷新无效的，或者净值日期不是今天的基金
             if !holding.isValid || !calendar.isDateInToday(holding.navDate) {
                 return holding.fundCode
             }
@@ -409,7 +406,6 @@ struct SummaryView: View {
 
         let totalCount = fundCodesToRefresh.count
         
-        // 如果没有需要刷新的基金，直接返回
         if totalCount == 0 {
             await MainActor.run {
                 isRefreshing = false
@@ -423,7 +419,6 @@ struct SummaryView: View {
         }
 
         for (index, code) in fundCodesToRefresh.enumerated() {
-            // 更新进度提示
             await MainActor.run {
                 refreshProgressText = "[\(index+1)/\(totalCount)]"
             }
@@ -457,7 +452,6 @@ struct SummaryView: View {
         let fundCodesToRefresh = unrecognizedFunds.map { $0.fundCode }
         let totalCount = fundCodesToRefresh.count
         
-        // 如果没有需要刷新的基金，直接返回
         if totalCount == 0 {
             await MainActor.run {
                 isRefreshingAllUnrecognizedFunds = false
@@ -494,12 +488,9 @@ struct SummaryView: View {
     }
     
     private func refreshSingleFund(fundCode: String) async -> Bool {
-        // 1. 从 API 获取数据
         let fetchedFundInfo = await fundService.fetchFundInfo(code: fundCode)
         
-        // 2. 在主线程上更新所有相关持仓
         await MainActor.run {
-            // 找到所有该基金代码下的持仓
             let indicesToUpdate = dataManager.holdings.indices.filter { dataManager.holdings[$0].fundCode == fundCode }
             
             for index in indicesToUpdate {
@@ -513,10 +504,8 @@ struct SummaryView: View {
                 dataManager.holdings[index].navReturn1y = fetchedFundInfo.navReturn1y
             }
             
-            // 确保没有重复的无效持仓
             let validHoldings = dataManager.holdings.filter { $0.fundCode == fundCode && $0.isValid }
             if !validHoldings.isEmpty {
-                // 如果至少有一个有效持仓，删除所有无效持仓
                 dataManager.holdings.removeAll { $0.fundCode == fundCode && !$0.isValid }
             }
             dataManager.saveData()
@@ -526,11 +515,11 @@ struct SummaryView: View {
     }
 }
 
-// 独立的基金卡片视图 (已拆分为标签和内容)
+// 独立的基金卡片视图
 struct FundHoldingCardLabel: View {
     var fund: FundHolding
     var selectedSortKey: SortKey
-    var getColumnValue: (FundHolding, String?) -> String // 新增：传递函数作为参数
+    var getColumnValue: (FundHolding, String?) -> String
     
     @Environment(\.colorScheme) var colorScheme
     
@@ -583,7 +572,7 @@ struct FundHoldingCardLabel: View {
             
             if selectedSortKey != .none {
                 VStack(alignment: .trailing) {
-                    let valueString = getColumnValue(fund, selectedSortKey.keyPathString) // 已修复：正确调用传递进来的函数
+                    let valueString = getColumnValue(fund, selectedSortKey.keyPathString)
                     let numberValue = Double(valueString.replacingOccurrences(of: "%", with: ""))
                     Text(valueString)
                         .font(.headline)
@@ -591,13 +580,11 @@ struct FundHoldingCardLabel: View {
                 }
                 .padding(.horizontal, 16)
             }
-            
-            // DisclosureGroup 的箭头会自动处理动画，此处无需额外添加
         }
     }
 }
 
-// 优化后的函数，解决了编译器警告 (保持不变)
+// 辅助函数
 private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn: (FundHolding) -> Double?) -> Text {
     let sortedFunds = funds.sorted { $0.clientName < $1.clientName }
     
@@ -607,7 +594,6 @@ private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn:
         return Text("")
     }
 
-    // 先处理第一个元素
     var firstText = Text(sortedFunds[0].clientName)
     if let holdingReturn = getHoldingReturn(sortedFunds[0]) {
         firstText = firstText + Text("(\(holdingReturn.formattedPercentage))")
@@ -615,7 +601,6 @@ private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn:
     }
     combinedText = firstText
 
-    // 循环剩余元素并添加分隔符
     for holding in sortedFunds.dropFirst() {
         var nextText = Text(holding.clientName)
         if let holdingReturn = getHoldingReturn(holding) {

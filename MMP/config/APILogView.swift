@@ -5,7 +5,7 @@ struct APILogView: View {
     @Environment(\.dismiss) var dismiss
     
     // 手动定义所有日志类型
-    private let allLogTypes: [LogType] = [.error, .success, .network, .cache, .info]
+    private let allLogTypes: [LogType] = [.error, .success, .network, .cache, .info, .warning]
     
     // 使用 AppStorage 保存用户选择的日志类型
     @AppStorage("selectedLogTypes") private var storedSelectedLogTypes: String = ""
@@ -34,53 +34,11 @@ struct APILogView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 日志类型筛选器 - 两行布局
-                VStack(spacing: 12) {
-                    // 第一行 - 前3个类型
-                    HStack(spacing: 16) {
-                        ForEach([allLogTypes[0], allLogTypes[1], allLogTypes[2]], id: \.self) { logType in
-                            LogTypeToggle(
-                                logType: logType,
-                                isSelected: Binding(
-                                    get: { selectedLogTypes.contains(logType) },
-                                    set: { isSelected in
-                                        if isSelected {
-                                            selectedLogTypes.insert(logType)
-                                        } else {
-                                            selectedLogTypes.remove(logType)
-                                        }
-                                        saveSelectedLogTypes()
-                                    }
-                                ),
-                                color: color(for: logType)
-                            )
-                        }
-                        
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // 第二行 - 后2个类型 + 全选按钮
-                    HStack(spacing: 16) {
-                        ForEach([allLogTypes[3], allLogTypes[4]], id: \.self) { logType in
-                            LogTypeToggle(
-                                logType: logType,
-                                isSelected: Binding(
-                                    get: { selectedLogTypes.contains(logType) },
-                                    set: { isSelected in
-                                        if isSelected {
-                                            selectedLogTypes.insert(logType)
-                                        } else {
-                                            selectedLogTypes.remove(logType)
-                                        }
-                                        saveSelectedLogTypes()
-                                    }
-                                ),
-                                color: color(for: logType)
-                            )
-                        }
-                        
-                        // 全选按钮 - 使用与其它按钮相同的样式
+                // 日志类型筛选器 - 三行布局
+                VStack(spacing: 8) { // 缩小行间距
+                    // 第一行 - 全选按钮（左上角对齐）
+                    HStack {
+                        // 全选按钮
                         Button(action: {
                             toggleAllSelection()
                             saveSelectedLogTypes()
@@ -105,7 +63,7 @@ struct APILogView: View {
                             .padding(.horizontal, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(isAllSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                    .fill(Color.clear) // 透明背景
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -116,10 +74,64 @@ struct APILogView: View {
                         
                         Spacer()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    
+                    // 第二行和第三行 - 整体虚线框
+                    VStack(spacing: 8) { // 缩小内部行间距
+                        // 第二行 - 成功、错误、警告
+                        HStack(spacing: 16) {
+                            ForEach([LogType.success, .error, .warning], id: \.self) { logType in
+                                LogTypeToggle(
+                                    logType: logType,
+                                    isSelected: Binding(
+                                        get: { selectedLogTypes.contains(logType) },
+                                        set: { isSelected in
+                                            if isSelected {
+                                                selectedLogTypes.insert(logType)
+                                            } else {
+                                                selectedLogTypes.remove(logType)
+                                            }
+                                            saveSelectedLogTypes()
+                                        }
+                                    ),
+                                    color: color(for: logType)
+                                )
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        // 第三行 - 网络、信息、缓存
+                        HStack(spacing: 16) {
+                            ForEach([LogType.network, .info, .cache], id: \.self) { logType in
+                                LogTypeToggle(
+                                    logType: logType,
+                                    isSelected: Binding(
+                                        get: { selectedLogTypes.contains(logType) },
+                                        set: { isSelected in
+                                            if isSelected {
+                                                selectedLogTypes.insert(logType)
+                                            } else {
+                                                selectedLogTypes.remove(logType)
+                                            }
+                                            saveSelectedLogTypes()
+                                        }
+                                    ),
+                                    color: color(for: logType)
+                                )
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(12) // 内部内边距
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                            .foregroundColor(.gray.opacity(0.5))
+                    )
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.vertical, 12) // 缩小垂直内边距
                 
                 Divider()
                 
@@ -206,6 +218,8 @@ struct APILogView: View {
             return .purple
         case .info:
             return .orange
+        case .warning:
+            return .yellow
         }
     }
     
@@ -315,7 +329,7 @@ struct LogTypeCard: View {
                 } else {
                     // 折叠状态 - 显示有限数量的日志
                     ForEach(logs.prefix(maxVisibleItems).reversed()) { log in
-                        LogItemView(log: log)
+                                LogItemView(log: log)
                     }
                 }
                 
@@ -359,7 +373,7 @@ struct LogItemView: View {
                     .foregroundColor(.secondary)
                     .frame(width: 60, alignment: .leading)
                 
-                Text(log.formattedMessage)
+                Text(log.message)
                     .font(.caption)
                     .foregroundColor(.primary)
                     .lineLimit(2)
@@ -391,6 +405,8 @@ extension LogType {
             return "缓存"
         case .info:
             return "信息"
+        case .warning:
+            return "警告"
         }
     }
 }
