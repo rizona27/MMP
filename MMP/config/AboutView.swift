@@ -29,7 +29,9 @@ struct AboutView: View {
                         // 核心改动：将日志内容放入一个固定高度的滚动框中
                         ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
-                                BulletPointView(text: "Version 1.2.0 重大更新：\n重构了客户、日志页面，新增了排行页面。\n新增了API数据接口和日志逻辑、输出模式。")
+                                BulletPointView(text: "Version 1.2.4 \n优化数据更新逻辑，提升流畅度。")
+                                    .foregroundColor(.secondary)
+                                BulletPointView(text: "Version 1.2.0 重大版本更新：\n重构了客户、日志页面，新增了排行页面。\n新增了API数据接口和日志逻辑、输出模式。")
                                     .foregroundColor(.secondary)
                                 BulletPointView(text: "Version 1.0.7\n一览页面的逻辑修改。")
                                     .foregroundColor(.secondary)
