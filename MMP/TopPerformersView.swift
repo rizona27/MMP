@@ -54,6 +54,13 @@ struct TopPerformersView: View {
     @State private var showingToast = false
     @State private var toastMessage: String = ""
     
+    // 新增：计算缓存
+    @State private var profitCalculationCache: [String: ProfitResult] = [:]
+    @State private var daysHeldCache: [String: Int] = [:]
+    
+    // 新增：加载状态
+    @State private var isLoading = false
+    
     // 筛选按钮点击后执行筛选
     private func applyFilters() {
         appliedFundCodeFilter = fundCodeFilterInput
@@ -97,6 +104,11 @@ struct TopPerformersView: View {
             showingToast = true
         }
     }
+    
+    // 计算缓存键
+    private func cacheKey(for holding: FundHolding) -> String {
+        return "\(holding.fundCode)_\(holding.purchaseDate.timeIntervalSince1970)_\(holding.purchaseAmount)"
+    }
 
     private var zeroProfitIndex: Int? {
         filteredAndSortedHoldings.firstIndex(where: { $0.profit.annualized < 0 })
@@ -111,14 +123,33 @@ struct TopPerformersView: View {
         let maxProfit = Double(appliedMaxProfit)
 
         var results: [(holding: FundHolding, profit: ProfitResult)] = []
+        
+        // 使用缓存优化计算
         for holding in dataManager.holdings where holding.currentNav > 0 && holding.purchaseAmount > 0 {
-            let profit = dataManager.calculateProfit(for: holding)
-            let item = (holding: holding, profit: profit)
-            let annualizedProfit = item.profit.annualized
-            let purchaseAmount = item.holding.purchaseAmount
-            let daysHeld = daysBetween(start: item.holding.purchaseDate, end: Date())
+            let cacheKey = self.cacheKey(for: holding)
+            
+            // 从缓存获取或计算收益
+            let profit: ProfitResult
+            if let cachedProfit = profitCalculationCache[cacheKey] {
+                profit = cachedProfit
+            } else {
+                profit = dataManager.calculateProfit(for: holding)
+                profitCalculationCache[cacheKey] = profit
+            }
+            
+            // 从缓存获取或计算持有天数
+            let daysHeld: Int
+            if let cachedDays = daysHeldCache[cacheKey] {
+                daysHeld = cachedDays
+            } else {
+                daysHeld = daysBetween(start: holding.purchaseDate, end: Date())
+                daysHeldCache[cacheKey] = daysHeld
+            }
+            
+            let annualizedProfit = profit.annualized
+            let purchaseAmount = holding.purchaseAmount
 
-            if !appliedFundCodeFilter.isEmpty && !item.holding.fundCode.localizedCaseInsensitiveContains(appliedFundCodeFilter) && !item.holding.fundName.localizedCaseInsensitiveContains(appliedFundCodeFilter) {
+            if !appliedFundCodeFilter.isEmpty && !holding.fundCode.localizedCaseInsensitiveContains(appliedFundCodeFilter) && !holding.fundName.localizedCaseInsensitiveContains(appliedFundCodeFilter) {
                 continue
             }
             if let min = minAmount, purchaseAmount < min {
@@ -139,14 +170,14 @@ struct TopPerformersView: View {
             if let max = maxProfit, annualizedProfit > max {
                 continue
             }
-            results.append(item)
+            results.append((holding: holding, profit: profit))
         }
         return results.sorted { $0.profit.annualized > $1.profit.annualized }
     }
 
     var body: some View {
         NavigationView {
-            ZStack(alignment: .bottom) { // 使用 ZStack 来覆盖提示消息
+            ZStack(alignment: .bottom) {
                 GeometryReader { geometry in
                     let totalWidth = geometry.size.width
                     // 优化后的宽度比例，确保总和为 1.0
@@ -159,7 +190,7 @@ struct TopPerformersView: View {
                     let clientWidth: CGFloat = totalWidth * 0.18 // 增大客户列宽度
                     
                     VStack(spacing: 0) {
-                        // 筛选条件输入区域 - 重新排版
+                        // 筛选条件输入区域
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 12) {
                                 FilterFieldView(title: "代码/名称", placeholder: "输入代码或名称", text: $fundCodeFilterInput)
@@ -167,7 +198,6 @@ struct TopPerformersView: View {
                             }
                             HStack(spacing: 12) {
                                 FilterRangeFieldView(title: "持有天数", minPlaceholder: "最低", maxPlaceholder: "最高", minText: $minDaysInput, maxText: $maxDaysInput, keyboardType: .numberPad)
-                                // 修改收益率筛选的键盘类型为 numbersAndPunctuation，支持输入负号
                                 FilterRangeFieldView(title: "收益率(%)", minPlaceholder: "最低", maxPlaceholder: "最高", minText: $varprofitInput, maxText: $maxProfitInput, keyboardType: .numbersAndPunctuation)
                             }
                         }
@@ -175,7 +205,7 @@ struct TopPerformersView: View {
                         .padding(.horizontal, 16)
                         .background(Color(.systemGray6))
 
-                        // 列表头 - 优化高度
+                        // 列表头
                         HStack(alignment: .center, spacing: 0) {
                             Group {
                                 Text("#")
@@ -204,78 +234,77 @@ struct TopPerformersView: View {
                             .padding(.vertical, 6)
                         }
                         .background(Color(.systemGray5))
-                        .frame(height: 32) // 固定表头高度
+                        .frame(height: 32)
                         
-                        // 排名列表主体
-                        List {
-                            ForEach(filteredAndSortedHoldings.indices, id: \.self) { index in
-                                let item = filteredAndSortedHoldings[index]
-                                
-                                if index == zeroProfitIndex {
-                                    Divider()
-                                        .background(Color.secondary)
-                                        .frame(height: 2)
-                                        .padding(.horizontal)
-                                }
-                                
-                                HStack(alignment: .top, spacing: 0) {
-                                    Group {
-                                        // 序号
-                                        Text("\(index + 1).")
-                                            .frame(width: numberWidth, alignment: .leading)
-                                            .font(.system(size: 12, weight: .bold))
-                                        Divider().background(Color.secondary)
-                                        // 代码/名称
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(item.holding.fundCode)
-                                                .font(.system(size: 12, weight: .bold))
-                                                .lineLimit(1)
-                                                .truncationMode(.tail)
-                                            Text(item.holding.fundName)
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                                .truncationMode(.tail)
-                                        }
-                                        .frame(width: codeNameWidth, alignment: .leading)
-                                        Divider().background(Color.secondary)
-                                        // 金额(万)
-                                        Text(formatAmountInTenThousands(item.holding.purchaseAmount))
-                                            .font(.system(size: 12))
-                                            .frame(width: amountWidth, alignment: .center)
-                                        Divider().background(Color.secondary)
-                                        // 收益(万)
-                                        Text(formatAmountInTenThousands(item.profit.absolute))
-                                            .font(.system(size: 12))
-                                            .foregroundColor(item.profit.absolute >= 0 ? .red : .green)
-                                            .frame(width: profitWidth, alignment: .center)
-                                        Divider().background(Color.secondary)
-                                        // 天数
-                                        Text(String(daysBetween(start: item.holding.purchaseDate, end: Date())))
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                            .frame(width: daysWidth, alignment: .center)
-                                        Divider().background(Color.secondary)
-                                        // 收益率(%)
-                                        Text(String(format: "%.2f", item.profit.annualized))
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(item.profit.annualized >= 0 ? .red : .green)
-                                            .frame(width: rateWidth, alignment: .center)
-                                        Divider().background(Color.secondary)
-                                        // 客户 - 修改截断逻辑为4个汉字
-                                        Text(item.holding.clientName)
-                                            .font(.system(size: 11))
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                            .frame(width: clientWidth, alignment: .leading)
+                        // 使用ScrollView + LazyVStack替代List提高性能
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredAndSortedHoldings.indices, id: \.self) { index in
+                                    let item = filteredAndSortedHoldings[index]
+                                    
+                                    if index == zeroProfitIndex {
+                                        Divider()
+                                            .background(Color.secondary)
+                                            .frame(height: 2)
+                                            .padding(.horizontal)
                                     }
+                                    
+                                    HStack(alignment: .top, spacing: 0) {
+                                        Group {
+                                            // 序号
+                                            Text("\(index + 1).")
+                                                .frame(width: numberWidth, alignment: .leading)
+                                                .font(.system(size: 12, weight: .bold))
+                                            Divider().background(Color.secondary)
+                                            // 代码/名称
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(item.holding.fundCode)
+                                                    .font(.system(size: 12, weight: .bold))
+                                                    .lineLimit(1)
+                                                    .truncationMode(.tail)
+                                                Text(item.holding.fundName)
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.secondary)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.tail)
+                                            }
+                                            .frame(width: codeNameWidth, alignment: .leading)
+                                            Divider().background(Color.secondary)
+                                            // 金额(万)
+                                            Text(formatAmountInTenThousands(item.holding.purchaseAmount))
+                                                .font(.system(size: 12))
+                                                .frame(width: amountWidth, alignment: .center)
+                                            Divider().background(Color.secondary)
+                                            // 收益(万)
+                                            Text(formatAmountInTenThousands(item.profit.absolute))
+                                                .font(.system(size: 12))
+                                                .foregroundColor(item.profit.absolute >= 0 ? .red : .green)
+                                                .frame(width: profitWidth, alignment: .center)
+                                            Divider().background(Color.secondary)
+                                            // 天数
+                                            Text(String(daysBetween(start: item.holding.purchaseDate, end: Date())))
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.secondary)
+                                                .frame(width: daysWidth, alignment: .center)
+                                            Divider().background(Color.secondary)
+                                            // 收益率(%)
+                                            Text(String(format: "%.2f", item.profit.annualized))
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(item.profit.annualized >= 0 ? .red : .green)
+                                                .frame(width: rateWidth, alignment: .center)
+                                            Divider().background(Color.secondary)
+                                            // 客户
+                                            Text(item.holding.clientName)
+                                                .font(.system(size: 11))
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                                .frame(width: clientWidth, alignment: .leading)
+                                        }
+                                    }
+                                    .padding(.vertical, 6)
                                 }
-                                .padding(.vertical, 6)
-                                .listRowInsets(EdgeInsets())
-                                .listRowSeparator(.hidden)
                             }
                         }
-                        .listStyle(PlainListStyle())
                     }
                     .onTapGesture {
                         self.hideKeyboard()
@@ -285,7 +314,6 @@ struct TopPerformersView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button {
-                            // 🌟 修改：左上角按钮功能
                             resetFilters()
                         } label: {
                             Image(systemName: "arrow.counterclockwise.circle")
@@ -294,7 +322,6 @@ struct TopPerformersView: View {
                     
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
-                            // 🌟 修改：右侧按钮功能
                             applyFilters()
                         } label: {
                             Image(systemName: "checkmark.circle")
@@ -302,9 +329,30 @@ struct TopPerformersView: View {
                     }
                 }
                 
-                // 🌟 新增：Toast 提示视图
+                // 加载指示器
+                if isLoading {
+                    ProgressView("加载中...")
+                        .padding()
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(10)
+                        .shadow(radius: 10)
+                }
+                
+                // 使用项目中已存在的 ToastView
                 ToastView(message: toastMessage, isShowing: $showingToast)
-                    .padding(.bottom, 80) // 避免和底部的 Home Indicator 冲突
+                    .padding(.bottom, 80)
+            }
+        }
+        .onAppear {
+            // 预计算数据
+            isLoading = true
+            DispatchQueue.global(qos: .userInitiated).async {
+                // 预填充缓存
+                _ = self.filteredAndSortedHoldings
+                
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
             }
         }
     }
