@@ -27,7 +27,7 @@ enum SortKey: String, CaseIterable, Identifiable {
         case .navReturn1m: return .navReturn3m
         case .navReturn3m: return .navReturn6m
         case .navReturn6m: return .navReturn1y
-        case .navReturn1y: return .navReturn1y
+        case .navReturn1y: return .none // Change: Loop back to .none
         }
     }
 }
@@ -65,9 +65,9 @@ struct SummaryView: View {
 
     // 此方法已不再需要，因为 unrecognizedFunds 不再是 @State
     // private func saveUnrecognizedFunds() {
-    //    if let encoded = try? JSONEncoder().encode(unrecognizedFunds) {
-    //        UserDefaults.standard.set(encoded, forKey: "unrecognizedFunds")
-    //    }
+    //     if let encoded = try? JSONEncoder().encode(unrecognizedFunds) {
+    //         UserDefaults.standard.set(encoded, forKey: "unrecognizedFunds")
+    //     }
     // }
 
     private var recognizedFunds: [String: [FundHolding]] {
@@ -158,10 +158,10 @@ struct SummaryView: View {
                             HStack {
                                 Image(systemName: sortButtonIconName())
                                     .foregroundColor(.primary)
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 16)) // Change: Increased font size
                                 if selectedSortKey != .none {
                                     Text(selectedSortKey.rawValue)
-                                        .font(.system(size: 14))
+                                        .font(.system(size: 16)) // Change: Increased font size
                                         .foregroundColor(.primary)
                                 }
                             }
@@ -178,9 +178,9 @@ struct SummaryView: View {
                                 }
                             }) {
                                 Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 16, weight: .bold)) // Change: Increased font size
                                     .foregroundColor(.white)
-                                    .frame(width: 24, height: 24)
+                                    .frame(width: 28, height: 28) // Change: Increased frame size to match larger icon
                                     .background(Color.accentColor)
                                     .clipShape(Circle())
                             }
@@ -218,7 +218,7 @@ struct SummaryView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.system(size: 18, weight: .medium)) // Change: Increased font size
                             }
                         }
                         .disabled(isRefreshing)
