@@ -4,8 +4,8 @@ struct APILogView: View {
     @EnvironmentObject var fundService: FundService
     @Environment(\.dismiss) var dismiss
     
-    // 手动定义所有日志类型
-    private let allLogTypes: [LogType] = [.error, .success, .network, .cache, .info, .warning]
+    // 手动定义所有日志类型，并按照你想要的顺序排列
+    private let allLogTypes: [LogType] = [.success, .error, .warning, .network, .info, .cache]
     
     // 使用 AppStorage 保存用户选择的日志类型
     @AppStorage("selectedLogTypes") private var storedSelectedLogTypes: String = ""
@@ -21,7 +21,7 @@ struct APILogView: View {
         Dictionary(grouping: fundService.logMessages) { $0.type }
     }
     
-    // 过滤后的日志类型（只显示选中的类型）
+    // 过滤后的日志类型（只显示选中的类型），并保持指定的顺序
     private var filteredLogTypes: [LogType] {
         allLogTypes.filter { selectedLogTypes.contains($0) }
     }
@@ -34,9 +34,9 @@ struct APILogView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 日志类型筛选器 - 三行布局
-                VStack(spacing: 8) { // 缩小行间距
-                    // 第一行 - 全选按钮（左上角对齐）
+                // 日志类型筛选器 - 优化后的三行布局
+                VStack(spacing: 8) {
+                    // 第一行 - 全选按钮
                     HStack {
                         // 全选按钮
                         Button(action: {
@@ -74,11 +74,9 @@ struct APILogView: View {
                         
                         Spacer()
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
                     
                     // 第二行和第三行 - 整体虚线框
-                    VStack(spacing: 8) { // 缩小内部行间距
+                    VStack(spacing: 8) {
                         // 第二行 - 成功、错误、警告
                         HStack(spacing: 16) {
                             ForEach([LogType.success, .error, .warning], id: \.self) { logType in
@@ -129,9 +127,9 @@ struct APILogView: View {
                             .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
                             .foregroundColor(.gray.opacity(0.5))
                     )
-                    .padding(.horizontal, 20)
                 }
-                .padding(.vertical, 12) // 缩小垂直内边距
+                .padding(.horizontal, 20) // 统一设置水平内边距
+                .padding(.vertical, 12) // 统一设置垂直内边距
                 
                 Divider()
                 
@@ -149,6 +147,7 @@ struct APILogView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
+                            // 遍历 filteredLogTypes，它已经按照你指定的顺序排列
                             ForEach(filteredLogTypes, id: \.self) { logType in
                                 if let logs = groupedLogs[logType], !logs.isEmpty {
                                     LogTypeCard(
@@ -234,7 +233,7 @@ struct APILogView: View {
     // 恢复用户选择的日志类型
     private func restoreSelectedLogTypes() {
         if let data = storedSelectedLogTypes.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             selectedLogTypes = Set(decoded.compactMap { LogType(rawValue: $0) })
         } else {
             // 如果没有保存的选择，默认全选
@@ -329,7 +328,7 @@ struct LogTypeCard: View {
                 } else {
                     // 折叠状态 - 显示有限数量的日志
                     ForEach(logs.prefix(maxVisibleItems).reversed()) { log in
-                                LogItemView(log: log)
+                        LogItemView(log: log)
                     }
                 }
                 
