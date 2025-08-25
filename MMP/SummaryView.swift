@@ -325,7 +325,7 @@ struct SummaryView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
-                    .padding(.horizontal, 4) // 减少水平内边距
+                    .padding(.horizontal, 2) // 减少水平内边距
                     .padding(.bottom, 8)
                 }
                 .background(Color(.systemGroupedBackground))

@@ -442,7 +442,7 @@ struct ClientView: View {
                                         // 移除 .refreshable 功能
                                     }
                                 }
-                                .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0), height: geometry.size.height)
+                                .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0) - 4, height: geometry.size.height)
                                 .background(Color(.systemGroupedBackground))
                                 .cornerRadius(10)
                                 .overlay(
@@ -451,6 +451,7 @@ struct ClientView: View {
                                 )
                             }
                         }
+                        .padding(.horizontal, 2)
                     }
                 }
                 .navigationTitle("")
@@ -461,7 +462,7 @@ struct ClientView: View {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button(action: toggleAllCards) {
                             Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
-                                .font(.system(size: 14, weight: .medium)) // 修改为12
+                                .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.accentColor)
                         }
                     }
@@ -477,7 +478,7 @@ struct ClientView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 14, weight: .medium)) 
+                                    .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.accentColor)
                             }
                         }
