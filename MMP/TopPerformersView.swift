@@ -126,7 +126,7 @@ struct TopPerformersView: View {
         NavigationView {
             ZStack(alignment: .bottom) {
                 GeometryReader { geometry in
-                    let totalWidth = geometry.size.width - 24 // 减去左右总共的 padding
+                    let totalWidth = geometry.size.width - 4 // 减去左右总共的 padding
                     let numberWidth: CGFloat = totalWidth * 0.08
                     let codeNameWidth: CGFloat = totalWidth * 0.22
                     let amountWidth: CGFloat = totalWidth * 0.12
@@ -264,7 +264,7 @@ struct TopPerformersView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 12) // 将统一的水平内边距应用于整个 VStack
+                    .padding(.horizontal, 2) // 将统一的水平内边距应用于整个 VStack
                 }
                 .onTapGesture {
                     self.hideKeyboard()
