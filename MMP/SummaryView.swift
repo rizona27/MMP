@@ -227,97 +227,108 @@ struct SummaryView: View {
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
                     
-                    // 基金列表
-                    List {
+                    // 基金列表区域 - 添加外部框体
+                    VStack(spacing: 0) {
                         if dataManager.holdings.filter({ $0.isValid }).isEmpty {
                             Text("当前没有基金持仓数据")
                                 .foregroundColor(.gray)
-                                .listRowSeparator(.hidden)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .padding()
                         } else {
-                            ForEach(sortedFundCodes, id: \.self) { fundCode in
-                                if let funds = recognizedFunds[fundCode], let _ = funds.first {
-                                    DisclosureGroup(isExpanded: Binding(
-                                        get: { expandedFundCodes.contains(fundCode) },
-                                        set: { isExpanded in
-                                            if isExpanded {
-                                                expandedFundCodes.insert(fundCode)
-                                            } else {
-                                                expandedFundCodes.remove(fundCode)
-                                            }
-                                        }
-                                    )) {
-                                        // 展开后的第二张卡片
-                                        VStack(alignment: .leading, spacing: 12) {
-                                            // Grid 布局的收益率显示
-                                            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                                                GridRow {
-                                                    Text("近1月:")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
-                                                    Text(funds.first!.navReturn1m?.formattedPercentage ?? "/")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(colorForValue(funds.first!.navReturn1m))
-                                                    Text("近3月:")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
-                                                    Text(funds.first!.navReturn3m?.formattedPercentage ?? "/")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(colorForValue(funds.first!.navReturn3m))
-                                                }
-                                                GridRow {
-                                                    Text("近6月:")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
-                                                    Text(funds.first!.navReturn6m?.formattedPercentage ?? "/")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(colorForValue(funds.first!.navReturn6m))
-                                                    Text("近1年:")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
-                                                    Text(funds.first!.navReturn1y?.formattedPercentage ?? "/")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(colorForValue(funds.first!.navReturn1y))
+                            List {
+                                ForEach(sortedFundCodes, id: \.self) { fundCode in
+                                    if let funds = recognizedFunds[fundCode], let _ = funds.first {
+                                        DisclosureGroup(isExpanded: Binding(
+                                            get: { expandedFundCodes.contains(fundCode) },
+                                            set: { isExpanded in
+                                                if isExpanded {
+                                                    expandedFundCodes.insert(fundCode)
+                                                } else {
+                                                    expandedFundCodes.remove(fundCode)
                                                 }
                                             }
-                                            
-                                            Divider()
-                                            
-                                            HStack(alignment: .top) {
-                                                Text("持有客户:")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.secondary)
-                                                    .fixedSize(horizontal: true, vertical: false)
+                                        )) {
+                                            // 展开后的第二张卡片
+                                            VStack(alignment: .leading, spacing: 12) {
+                                                // Grid 布局的收益率显示
+                                                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                                                    GridRow {
+                                                        Text("近1月:")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
+                                                        Text(funds.first!.navReturn1m?.formattedPercentage ?? "/")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(colorForValue(funds.first!.navReturn1m))
+                                                        Text("近3月:")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
+                                                        Text(funds.first!.navReturn3m?.formattedPercentage ?? "/")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(colorForValue(funds.first!.navReturn3m))
+                                                    }
+                                                    GridRow {
+                                                        Text("近6月:")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
+                                                        Text(funds.first!.navReturn6m?.formattedPercentage ?? "/")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(colorForValue(funds.first!.navReturn6m))
+                                                        Text("近1年:")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
+                                                        Text(funds.first!.navReturn1y?.formattedPercentage ?? "/")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(colorForValue(funds.first!.navReturn1y))
+                                                    }
+                                                }
                                                 
-                                                combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn)
-                                                    .font(.subheadline)
-                                                    .lineLimit(nil)
-                                                    .multilineTextAlignment(.leading)
+                                                Divider()
+                                                
+                                                HStack(alignment: .top) {
+                                                    Text("持有客户:")
+                                                        .font(.subheadline)
+                                                        .foregroundColor(.secondary)
+                                                        .fixedSize(horizontal: true, vertical: false)
+                                                    
+                                                    combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn)
+                                                        .font(.subheadline)
+                                                        .lineLimit(nil)
+                                                        .multilineTextAlignment(.leading)
+                                                }
                                             }
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(Color(.secondarySystemBackground))
+                                            .cornerRadius(10)
+                                            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                                        } label: {
+                                            // 主要基金卡片部分
+                                            FundHoldingCardLabel(
+                                                fund: funds.first!,
+                                                selectedSortKey: selectedSortKey,
+                                                getColumnValue: getColumnValue
+                                            )
                                         }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(Color(.secondarySystemBackground))
-                                        .cornerRadius(10)
-                                        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
-                                    } label: {
-                                        // 主要基金卡片部分
-                                        FundHoldingCardLabel(
-                                            fund: funds.first!,
-                                            selectedSortKey: selectedSortKey,
-                                            getColumnValue: getColumnValue
-                                        )
+                                        .listRowSeparator(.hidden)
+                                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                        .listRowBackground(Color.clear)
                                     }
-                                    .listRowSeparator(.hidden)
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                    .listRowBackground(Color.clear)
                                 }
                             }
+                            .listStyle(PlainListStyle())
                         }
                     }
-                    .listStyle(PlainListStyle())
-                    // 移除 List 外层的圆角边框
-                    .background(Color(.systemGroupedBackground))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 4) // 减少水平内边距
+                    .padding(.bottom, 8)
                 }
+                .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
                 .onAppear {
                     // 只需要在 onAppear 时刷新一次数据
