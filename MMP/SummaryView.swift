@@ -143,6 +143,24 @@ struct SummaryView: View {
         }
     }
     
+    // 检查是否需要刷新收益率数据
+    private func needsReturnsRefresh(_ fund: FundHolding) -> Bool {
+        // 如果基金无效，不需要刷新
+        if !fund.isValid { return false }
+        
+        // 如果净值日期不是今天，需要刷新
+        if !calendar.isDateInToday(fund.navDate) { return true }
+        
+        // 检查四个收益率字段是否都有值
+        let hasAllReturns = fund.navReturn1m != nil &&
+                           fund.navReturn3m != nil &&
+                           fund.navReturn6m != nil &&
+                           fund.navReturn1y != nil
+        
+        // 如果缺少任何一个收益率数据，需要刷新
+        return !hasAllReturns
+    }
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
@@ -358,8 +376,9 @@ struct SummaryView: View {
             fundService.addLog("开始全局刷新所有基金数据...", type: .info)
         }
 
+        // 只刷新需要更新的基金
         let fundCodesToRefresh = Array(Set(dataManager.holdings.compactMap { holding in
-            if !holding.isValid || !calendar.isDateInToday(holding.navDate) {
+            if !holding.isValid || needsReturnsRefresh(holding) {
                 return holding.fundCode
             }
             return nil
@@ -403,7 +422,7 @@ struct SummaryView: View {
 
         // 一次性更新 dataManager.holdings
         await MainActor.run {
-            dataManager.holdings = newHoldings.filter { $0.isValid }
+            dataManager.holdings = newHoldings
             dataManager.saveData()
             
             isRefreshing = false

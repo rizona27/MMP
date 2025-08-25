@@ -125,6 +125,21 @@ class FundService: ObservableObject {
         
         if let dataFromAPI = fetchedHolding, dataFromAPI.isValid {
             finalHolding = dataFromAPI
+            
+            // 如果使用天天基金API，尝试获取收益率数据
+            if selectedFundAPI == .eastmoney {
+                addLog("基金代码 \(code): 尝试获取收益率数据", type: .network)
+                let returnsData = await fetchReturnsFromEastmoney(code: code)
+                
+                // 更新收益率数据
+                finalHolding.navReturn1m = returnsData.navReturn1m
+                finalHolding.navReturn3m = returnsData.navReturn3m
+                finalHolding.navReturn6m = returnsData.navReturn6m
+                finalHolding.navReturn1y = returnsData.navReturn1y
+                
+                addLog("基金代码 \(code): 收益率数据获取完成", type: .success)
+            }
+            
             saveToCache(holding: finalHolding)
             addLog("基金代码 \(code): 成功获取有效数据并更新主缓存。", type: .success)
         } else {
@@ -148,6 +163,21 @@ class FundService: ObservableObject {
                 
                 if let validBackup = backupHolding, validBackup.isValid {
                     finalHolding = validBackup
+                    
+                    // 如果使用天天基金API，尝试获取收益率数据
+                    if api == .eastmoney {
+                        addLog("基金代码 \(code): 尝试获取收益率数据", type: .network)
+                        let returnsData = await fetchReturnsFromEastmoney(code: code)
+                        
+                        // 更新收益率数据
+                        finalHolding.navReturn1m = returnsData.navReturn1m
+                        finalHolding.navReturn3m = returnsData.navReturn3m
+                        finalHolding.navReturn6m = returnsData.navReturn6m
+                        finalHolding.navReturn1y = returnsData.navReturn1y
+                        
+                        addLog("基金代码 \(code): 收益率数据获取完成", type: .success)
+                    }
+                    
                     saveToCache(holding: finalHolding)
                     addLog("基金代码 \(code): 备用API \(api.rawValue) 成功获取数据。", type: .success)
                     break
@@ -229,6 +259,81 @@ class FundService: ObservableObject {
         } catch {
             addLog("基金代码 \(code): 天天基金API请求失败: \(error.localizedDescription)", type: .error)
             return FundHolding.invalid(fundCode: code)
+        }
+    }
+    
+    // 从天天基金获取收益率数据
+    private func fetchReturnsFromEastmoney(code: String) async -> (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?) {
+        addLog("基金代码 \(code): 尝试从天天基金获取收益率数据", type: .network)
+        
+        let urlString = "https://fund.eastmoney.com/pingzhongdata/\(code).js"
+        guard let url = URL(string: urlString) else {
+            addLog("基金代码 \(code): 天天基金收益率API URL无效", type: .error)
+            return (nil, nil, nil, nil)
+        }
+        
+        do {
+            var request = URLRequest(url: url)
+            request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                addLog("基金代码 \(code): 天天基金收益率API响应状态码非200", type: .error)
+                return (nil, nil, nil, nil)
+            }
+            
+            if let jsString = String(data: data, encoding: .utf8) {
+                // 使用正则表达式提取收益率数据
+                var navReturn1m: Double? = nil
+                var navReturn3m: Double? = nil
+                var navReturn6m: Double? = nil
+                var navReturn1y: Double? = nil
+                
+                // 提取近1月收益率
+                if let range = jsString.range(of: "syl_1y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
+                    let match = String(jsString[range])
+                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
+                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
+                        navReturn1m = Double(valueString)
+                    }
+                }
+                
+                // 提取近3月收益率
+                if let range = jsString.range(of: "syl_3y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
+                    let match = String(jsString[range])
+                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
+                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
+                        navReturn3m = Double(valueString)
+                    }
+                }
+                
+                // 提取近6月收益率
+                if let range = jsString.range(of: "syl_6y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
+                    let match = String(jsString[range])
+                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
+                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
+                        navReturn6m = Double(valueString)
+                    }
+                }
+                
+                // 提取近1年收益率
+                if let range = jsString.range(of: "syl_1n\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
+                    let match = String(jsString[range])
+                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
+                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
+                        navReturn1y = Double(valueString)
+                    }
+                }
+                
+                addLog("基金代码 \(code): 收益率数据解析完成: 1月=\(navReturn1m ?? 0), 3月=\(navReturn3m ?? 0), 6月=\(navReturn6m ?? 0), 1年=\(navReturn1y ?? 0)", type: .success)
+                return (navReturn1m, navReturn3m, navReturn6m, navReturn1y)
+            }
+            
+            addLog("基金代码 \(code): 天天基金收益率API数据解析失败", type: .error)
+            return (nil, nil, nil, nil)
+        } catch {
+            addLog("基金代码 \(code): 天天基金收益率API请求失败: \(error.localizedDescription)", type: .error)
+            return (nil, nil, nil, nil)
         }
     }
     
