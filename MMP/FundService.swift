@@ -81,9 +81,9 @@ class FundService: ObservableObject {
         }
     }
 
-    // 主要的基金信息获取方法
-    func fetchFundInfo(code: String) async -> FundHolding {
-        addLog("开始查询基金代码: \(code)，使用API: \(selectedFundAPI.rawValue)", type: .network)
+    // 主要的基金信息获取方法 - 添加 useOnlyEastmoney 参数
+    func fetchFundInfo(code: String, useOnlyEastmoney: Bool = false) async -> FundHolding {
+        addLog("开始查询基金代码: \(code)，使用API: \(selectedFundAPI.rawValue)" + (useOnlyEastmoney ? " (仅使用天天基金)" : ""), type: .network)
         
         // 1. 检查主缓存
         if let cachedData = getFromCache(code: code) {
@@ -142,8 +142,8 @@ class FundService: ObservableObject {
             
             saveToCache(holding: finalHolding)
             addLog("基金代码 \(code): 成功获取有效数据并更新主缓存。", type: .success)
-        } else {
-            // 如果首选API失败，尝试其他API作为备用
+        } else if !useOnlyEastmoney {
+            // 如果首选API失败，并且允许使用备用API，则尝试其他API作为备用
             addLog("基金代码 \(code): 首选API失败，尝试备用API。", type: .warning)
             
             for api in FundAPI.allCases where api != selectedFundAPI {
@@ -189,6 +189,9 @@ class FundService: ObservableObject {
                 finalHolding = cachedData.holding
                 finalHolding.isValid = !isCacheExpired(cachedData)
             }
+        } else {
+            // 如果只使用天天基金API且获取失败，直接返回无效数据
+            addLog("基金代码 \(code): 天天基金API失败且不允许使用备用API。", type: .error)
         }
         
         return finalHolding
