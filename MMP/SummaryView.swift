@@ -48,12 +48,9 @@ struct SummaryView: View {
     @EnvironmentObject var fundService: FundService
 
     @State private var isRefreshing = false
-    // 修改未识别基金的计算逻辑，只包含完全没有收益率数据的基金
+    // 修改未识别基金的计算逻辑，只包含无效的基金
     private var unrecognizedFunds: [FundHolding] {
-        dataManager.holdings.filter { holding in
-            // 无效基金或收益率数据全部缺失的基金
-            !holding.isValid || (holding.navReturn1m == nil && holding.navReturn3m == nil && holding.navReturn6m == nil && holding.navReturn1y == nil)
-        }
+        dataManager.holdings.filter { !$0.isValid }
     }
     
     @State private var showingToast = false
@@ -377,7 +374,7 @@ struct SummaryView: View {
                     Button("暂不刷新基金", role: .cancel) { }
                 } message: {
                     VStack(alignment: .leading, spacing: 8) {
-                        // 修改：仅包含收益率全部缺失的基金
+                        // 修改：仅包含无效的基金
                         let fundsToRefresh = unrecognizedFunds.map { "\($0.fundName)[\($0.fundCode)]" }.joined(separator: "、")
     
                         if !fundsToRefresh.isEmpty {
@@ -538,7 +535,8 @@ struct SummaryView: View {
         while retryCount < 5 && fetchedFundInfo == nil {
             fetchedFundInfo = await fundService.fetchFundInfo(code: code, useOnlyEastmoney: true)
     
-            if fetchedFundInfo?.isValid == true {
+            // 修改：只要获取到净值数据就视为有效，不检查日期
+            if fetchedFundInfo != nil && fetchedFundInfo!.currentNav > 0 {
                 break
             }
     
@@ -558,8 +556,9 @@ struct SummaryView: View {
         let (code, fundInfo) = result
     
         await MainActor.run {
-            if let validFundInfo = fundInfo, validFundInfo.isValid {
-                updatedFunds[code] = validFundInfo
+            // 修改：只要获取到净值数据就视为有效
+            if let fundInfo = fundInfo, fundInfo.currentNav > 0 {
+                updatedFunds[code] = fundInfo
                 refreshStats.success += 1
                 fundService.addLog("基金 \(code) 刷新成功", type: .success)
             } else {
@@ -581,7 +580,10 @@ struct SummaryView: View {
                 newHoldings[index].fundName = updatedInfo.fundName
                 newHoldings[index].currentNav = updatedInfo.currentNav
                 newHoldings[index].navDate = updatedInfo.navDate
-                newHoldings[index].isValid = updatedInfo.isValid
+                
+                // 修改：只要获取到净值数据就标记为有效
+                newHoldings[index].isValid = updatedInfo.currentNav > 0
+                
                 newHoldings[index].navReturn1m = updatedInfo.navReturn1m
                 newHoldings[index].navReturn3m = updatedInfo.navReturn3m
                 newHoldings[index].navReturn6m = updatedInfo.navReturn6m
