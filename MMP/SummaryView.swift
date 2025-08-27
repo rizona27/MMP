@@ -48,20 +48,12 @@ struct SummaryView: View {
     @EnvironmentObject var fundService: FundService
 
     @State private var isRefreshing = false
-    // 修改未识别基金的计算逻辑，包括收益率不完整的基金
+    // 修改未识别基金的计算逻辑，只包含完全没有收益率数据的基金
     private var unrecognizedFunds: [FundHolding] {
         dataManager.holdings.filter { holding in
-            // 无效基金或收益率数据不完整的基金
-            !holding.isValid || !hasCompleteReturnData(holding)
+            // 无效基金或收益率数据全部缺失的基金
+            !holding.isValid || (holding.navReturn1m == nil && holding.navReturn3m == nil && holding.navReturn6m == nil && holding.navReturn1y == nil)
         }
-    }
-    
-    // 检查基金是否有完整的收益率数据
-    private func hasCompleteReturnData(_ fund: FundHolding) -> Bool {
-        return fund.navReturn1m != nil &&
-               fund.navReturn3m != nil &&
-               fund.navReturn6m != nil &&
-               fund.navReturn1y != nil
     }
     
     @State private var showingToast = false
@@ -77,6 +69,8 @@ struct SummaryView: View {
     @State private var refreshStats: (success: Int, fail: Int) = (0, 0)
     @State private var failedFunds: [String] = []
     
+    @State private var allExpanded = false
+
     private let calendar = Calendar.current
     private let maxConcurrentRequests = 3
 
@@ -100,7 +94,7 @@ struct SummaryView: View {
         let codes = recognizedFunds.keys.sorted()
     
         if selectedSortKey == .none {
-            return codes
+            return codes.sorted() // 默认按基金代码升序排列
         }
     
         let sortedCodes = codes.sorted { (code1, code2) in
@@ -126,6 +120,20 @@ struct SummaryView: View {
             }
         }
         return sortedCodes
+    }
+
+    private var areAnyCardsExpanded: Bool {
+        !expandedFundCodes.isEmpty
+    }
+
+    private func toggleAllCards() {
+        withAnimation {
+            if areAnyCardsExpanded {
+                expandedFundCodes.removeAll()
+            } else {
+                expandedFundCodes = Set(sortedFundCodes)
+            }
+        }
     }
 
     private func getSortValue(for fund: FundHolding, key: SortKey) -> Double? {
@@ -159,7 +167,20 @@ struct SummaryView: View {
                 VStack(spacing: 0) {
                     // 顶部按钮行
                     HStack {
-                        // 左侧排序按钮
+                        // 折叠/展开按钮
+                        Button(action: {
+                            toggleAllCards()
+                        }) {
+                            Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 16))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        
+                        // 排序按钮，尺寸与刷新按钮一致
                         Button(action: {
                             withAnimation {
                                 selectedSortKey = selectedSortKey.next
@@ -188,9 +209,9 @@ struct SummaryView: View {
                                 }
                             }) {
                                 Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.system(size: 16, weight: .bold)) // 修改图标大小为14
                                     .foregroundColor(.white)
-                                    .frame(width: 28, height: 28)
+                                    .frame(width: 28, height: 28) // 与刷新按钮尺寸保持一致
                                     .background(Color.accentColor)
                                     .clipShape(Circle())
                             }
@@ -206,7 +227,7 @@ struct SummaryView: View {
                                 .padding(.trailing, 8)
                         }
     
-                        // 未识别基金提示按钮
+                        // 未识别基金提示按钮 - 只在有完全无收益率数据的基金时显示
                         if !unrecognizedFunds.isEmpty {
                             Button(action: {
                                 showingUnrecognizedFundsAlert = true
@@ -291,16 +312,16 @@ struct SummaryView: View {
                                                             .foregroundColor(colorForValue(funds.first!.navReturn1y))
                                                     }
                                                 }
-                                                
+                                                    
                                                 Divider()
-                                                
+                                                    
                                                 HStack(alignment: .top) {
                                                     Text("持有客户:")
                                                         .font(.subheadline)
                                                         .foregroundColor(.secondary)
                                                         .fixedSize(horizontal: true, vertical: false)
     
-                                                    combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn)
+                                                    combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn, sortOrder: sortOrder)
                                                         .font(.subheadline)
                                                         .lineLimit(nil)
                                                         .multilineTextAlignment(.leading)
@@ -316,7 +337,9 @@ struct SummaryView: View {
                                             FundHoldingCardLabel(
                                                 fund: funds.first!,
                                                 selectedSortKey: selectedSortKey,
-                                                getColumnValue: getColumnValue
+                                                getColumnValue: { fund, keyPath in
+                                                    getColumnValue(for: fund, keyPath: keyPath)
+                                                }
                                             )
                                         }
                                         .listRowSeparator(.hidden)
@@ -340,48 +363,34 @@ struct SummaryView: View {
                 }
                 .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
-                .alert("需要刷新的基金", isPresented: $showingUnrecognizedFundsAlert) {
-                    Button("刷新这些基金", action: {
+                .alert("以下基金需要刷新", isPresented: $showingUnrecognizedFundsAlert) {
+                    Button("刷新以上基金", action: {
                         Task {
                             await refreshAllUnrecognizedFunds()
                         }
                     })
-                    Button("刷新全部", action: {
+                    Button("刷新全部基金", action: {
                         Task {
                             await refreshAllFunds()
                         }
                     })
-                    Button("关闭", role: .cancel) { }
+                    Button("暂不刷新基金", role: .cancel) { }
                 } message: {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("以下基金需要刷新:")
-                            .font(.headline)
+                        // 修改：仅包含收益率全部缺失的基金
+                        let fundsToRefresh = unrecognizedFunds.map { "\($0.fundName)[\($0.fundCode)]" }.joined(separator: "、")
     
-                        // 按类型分组显示
-                        let invalidFunds = dataManager.holdings.filter { !$0.isValid }
-                        let incompleteFunds = dataManager.holdings.filter { $0.isValid && !hasCompleteReturnData($0) }
-    
-                        if !invalidFunds.isEmpty {
-                            Text("未识别的基金:")
-                                .font(.subheadline)
-                                .foregroundColor(.red)
-                            Text(invalidFunds.map { $0.fundCode }.joined(separator: ", "))
-                                .font(.caption)
-                        }
-    
-                        if !incompleteFunds.isEmpty {
-                            Text("收益率数据不全的基金:")
+                        if !fundsToRefresh.isEmpty {
+                            Text(fundsToRefresh)
                                 .font(.subheadline)
                                 .foregroundColor(.orange)
-                            Text(incompleteFunds.map { $0.fundCode }.joined(separator: ", "))
-                                .font(.caption)
                         }
     
                         if !failedFunds.isEmpty {
                             Text("刷新失败的基金:")
                                 .font(.subheadline)
                                 .foregroundColor(.purple)
-                            Text(failedFunds.joined(separator: ", "))
+                            Text(failedFunds.joined(separator: "、"))
                                 .font(.caption)
                         }
                     }
@@ -418,7 +427,7 @@ struct SummaryView: View {
             }
             return
         }
-        
+    
         var updatedFunds: [String: FundHolding] = [:]
 
         await withTaskGroup(of: (String, FundHolding?).self) { group in
@@ -437,7 +446,7 @@ struct SummaryView: View {
             while let result = await group.next() {
                 activeTasks -= 1
                 await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
-                
+            
                 if let code = iterator.next() {
                     group.addTask {
                         await fetchFundWithRetry(code: code)
@@ -480,7 +489,7 @@ struct SummaryView: View {
         }
     
         var updatedFunds: [String: FundHolding] = [:]
-        
+            
         await withTaskGroup(of: (String, FundHolding?).self) { group in
             var iterator = fundCodesToRefresh.makeIterator()
             var activeTasks = 0
@@ -497,7 +506,7 @@ struct SummaryView: View {
             while let result = await group.next() {
                 activeTasks -= 1
                 await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
-                
+            
                 if let code = iterator.next() {
                     group.addTask {
                         await fetchFundWithRetry(code: code)
@@ -655,8 +664,21 @@ struct FundHoldingCardLabel: View {
 }
 
 // 辅助函数
-private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn: (FundHolding) -> Double?) -> Text {
-    let sortedFunds = funds.sorted { $0.clientName < $1.clientName }
+private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn: (FundHolding) -> Double?, sortOrder: SortOrder) -> Text {
+    let sortedFunds: [FundHolding]
+    if sortOrder == .ascending {
+        sortedFunds = funds.sorted {
+            let return1 = getHoldingReturn($0) ?? -Double.infinity
+            let return2 = getHoldingReturn($1) ?? -Double.infinity
+            return return1 < return2
+        }
+    } else { // descending
+        sortedFunds = funds.sorted {
+            let return1 = getHoldingReturn($0) ?? -Double.infinity
+            let return2 = getHoldingReturn($1) ?? -Double.infinity
+            return return1 > return2
+        }
+    }
     
     var combinedText: Text = Text("")
     
@@ -664,20 +686,18 @@ private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn:
         return Text("")
     }
 
-    var firstText = Text(sortedFunds[0].clientName)
-    if let holdingReturn = getHoldingReturn(sortedFunds[0]) {
-        firstText = firstText + Text("(\(holdingReturn.formattedPercentage))")
-            .foregroundColor(colorForValue(holdingReturn))
-    }
-    combinedText = firstText
-
-    for holding in sortedFunds.dropFirst() {
-        var nextText = Text(holding.clientName)
+    for (index, holding) in sortedFunds.enumerated() {
+        var clientText = Text(holding.clientName)
         if let holdingReturn = getHoldingReturn(holding) {
-            nextText = nextText + Text("(\(holdingReturn.formattedPercentage))")
+            clientText = clientText + Text("(\(holdingReturn.formattedPercentage))")
                 .foregroundColor(colorForValue(holdingReturn))
         }
-        combinedText = combinedText + Text("、") + nextText
+    
+        if index > 0 {
+            combinedText = combinedText + Text("、")
+        }
+    
+        combinedText = combinedText + clientText
     }
     
     return combinedText
