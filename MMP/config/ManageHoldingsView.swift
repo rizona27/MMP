@@ -12,6 +12,8 @@ struct ManageHoldingsView: View {
     @EnvironmentObject var fundService: FundService
     @Environment(\.dismiss) var dismiss
     
+    @Environment(\.colorScheme) var colorScheme
+    
     // 用于编辑单个持仓
     @State private var selectedHolding: FundHolding? = nil
     
@@ -160,7 +162,7 @@ struct ManageHoldingsView: View {
                                                 } label: {
                                                     headerView(for: clientGroup)
                                                 }
-                                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)) // 调整为和 ClientView 一致
                                                 .listRowSeparator(.hidden)
                                             }
                                         }
@@ -304,46 +306,63 @@ struct ManageHoldingsView: View {
         dataManager.saveData()
         fundService.addLog("ManageHoldingsView: 从客户 \(clientGroup.clientName) 下删除了 \(holdingsToDeleteIDs.count) 个持仓。", type: .info)
     }
-
-    // MARK: - 自定义 Section Header 视图，包含批量编辑按钮
+    
+    // MARK: - 自定义 Section Header 视图，采用 ClientView 的样式
     private func headerView(for clientGroup: ClientGroupForManagement) -> some View {
-        HStack {
-            Text(clientGroup.clientName)
-                .font(.headline)
-                .lineLimit(1) // 添加姓名栏单行显示限制
-                .truncationMode(.tail)
-                .foregroundColor(clientGroup.clientName.morandiColor().textColorBasedOnLuminance())
-            
-            Spacer()
-            
-            Button("批量改名") {
-                clientToRename = clientGroup
-                newClientName = clientGroup.clientName
-                isShowingRenameAlert = true
+        let baseColor = clientGroup.clientName.morandiColor()
+        
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                if !clientGroup.clientName.isEmpty {
+                    // 如果客户姓名不为空，则只显示姓名
+                    Text("**\(clientGroup.clientName)**")
+                        .font(.subheadline)
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else if let clientID = clientGroup.holdings.first?.clientID, !clientID.isEmpty {
+                    // 如果姓名为空，但客户号不为空，则显示客户号
+                    Text("(\(clientID))")
+                        .font(.caption.monospaced())
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                }
+                
+                Spacer()
+                
+                Button("批量改名") {
+                    clientToRename = clientGroup
+                    newClientName = clientGroup.clientName
+                    isShowingRenameAlert = true
+                }
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.8) : Color.blue)
+                .buttonStyle(.plain)
+                .padding(.trailing, 10)
+                
+                Button("批量删除") {
+                    clientToDelete = clientGroup
+                    isShowingDeleteAlert = true
+                }
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(colorScheme == .dark ? Color.red.opacity(0.8) : Color.red)
+                .buttonStyle(.plain)
             }
-            .font(.caption)
-            .fontWeight(.bold)
-            .foregroundColor(.blue)
-            .buttonStyle(.plain)
-            .padding(.trailing, 10)
-            
-            Button("批量删除") {
-                clientToDelete = clientGroup
-                isShowingDeleteAlert = true
-            }
-            .font(.caption)
-            .fontWeight(.bold)
-            .foregroundColor(.red)
-            .buttonStyle(.plain)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [baseColor.opacity(0.8), Color.clear]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(gradient: Gradient(colors: [clientGroup.clientName.morandiColor(), Color.white]), startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
     }
 }
 
