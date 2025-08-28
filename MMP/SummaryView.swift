@@ -171,11 +171,11 @@ struct SummaryView: View {
                         }) {
                             Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
                                 .foregroundColor(.accentColor)
-                                .font(.system(size: 16))
+                                .font(.system(size: 18))
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color(.systemGray6))
+                        .background(Color.clear)
                         .cornerRadius(8)
                     
                         // 排序按钮，尺寸与刷新按钮一致
@@ -196,7 +196,7 @@ struct SummaryView: View {
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(Color(.systemGray6))
+                            .background(Color.clear)
                             .cornerRadius(8)
                         }
 
@@ -207,9 +207,9 @@ struct SummaryView: View {
                                 }
                             }) {
                                 Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 16, weight: .bold)) // 修改图标大小为14
+                                    .font(.system(size: 14, weight: .regular)) // 修改图标大小为14
                                     .foregroundColor(.white)
-                                    .frame(width: 28, height: 28) // 与刷新按钮尺寸保持一致
+                                    .frame(width: 22, height: 22) // 与刷新按钮尺寸保持一致
                                     .background(Color.accentColor)
                                     .clipShape(Circle())
                             }
@@ -247,7 +247,7 @@ struct SummaryView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18, weight: .medium))
+                                    .font(.system(size: 18, weight: .regular))
                             }
                         }
                         .disabled(isRefreshing)
