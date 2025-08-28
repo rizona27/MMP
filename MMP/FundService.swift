@@ -285,57 +285,56 @@ class FundService: ObservableObject {
                 return (nil, nil, nil, nil)
             }
             
-            if let jsString = String(data: data, encoding: .utf8) {
-                // 使用正则表达式提取收益率数据
-                var navReturn1m: Double? = nil
-                var navReturn3m: Double? = nil
-                var navReturn6m: Double? = nil
-                var navReturn1y: Double? = nil
-                
-                // 提取近1月收益率
-                if let range = jsString.range(of: "syl_1y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
-                    let match = String(jsString[range])
-                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
-                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
-                        navReturn1m = Double(valueString)
-                    }
-                }
-                
-                // 提取近3月收益率
-                if let range = jsString.range(of: "syl_3y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
-                    let match = String(jsString[range])
-                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
-                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
-                        navReturn3m = Double(valueString)
-                    }
-                }
-                
-                // 提取近6月收益率
-                if let range = jsString.range(of: "syl_6y\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
-                    let match = String(jsString[range])
-                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
-                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
-                        navReturn6m = Double(valueString)
-                    }
-                }
-                
-                // 提取近1年收益率
-                if let range = jsString.range(of: "syl_1n\\s*=\\s*\"([^\"]+)\"", options: .regularExpression) {
-                    let match = String(jsString[range])
-                    if let valueRange = match.range(of: "\"[^\"]+\"", options: .regularExpression) {
-                        let valueString = String(match[valueRange]).replacingOccurrences(of: "\"", with: "")
-                        navReturn1y = Double(valueString)
-                    }
-                }
-                
-                addLog("基金代码 \(code): 收益率数据解析完成: 1月=\(navReturn1m ?? 0), 3月=\(navReturn3m ?? 0), 6月=\(navReturn6m ?? 0), 1年=\(navReturn1y ?? 0)", type: .success)
-                return (navReturn1m, navReturn3m, navReturn6m, navReturn1y)
+            guard let jsString = String(data: data, encoding: .utf8) else {
+                addLog("基金代码 \(code): 天天基金收益率API数据编码失败", type: .error)
+                return (nil, nil, nil, nil)
             }
             
-            addLog("基金代码 \(code): 天天基金收益率API数据解析失败", type: .error)
-            return (nil, nil, nil, nil)
+            var navReturn1m: Double? = nil
+            var navReturn3m: Double? = nil
+            var navReturn6m: Double? = nil
+            var navReturn1y: Double? = nil
+            
+            // 修正正则表达式以匹配正确的变量名
+            let regex = try NSRegularExpression(pattern: "syl_(\\d+[yn])\\s*=\\s*\"([^\"]*)\"", options: [])
+            let range = NSRange(jsString.startIndex..<jsString.endIndex, in: jsString)
+            
+            regex.enumerateMatches(in: jsString, options: [], range: range) { match, _, _ in
+                guard let match = match, match.numberOfRanges == 3 else { return }
+                
+                let keyRange = match.range(at: 1)
+                let valueRange = match.range(at: 2)
+                
+                guard let keySwiftRange = Range(keyRange, in: jsString),
+                      let valueSwiftRange = Range(valueRange, in: jsString) else {
+                    return
+                }
+                
+                let key = String(jsString[keySwiftRange])
+                let valueString = String(jsString[valueSwiftRange])
+                
+                if let value = Double(valueString) {
+                    // 将捕获的键值对赋给对应的变量
+                    switch key {
+                    case "1y":
+                        navReturn1m = value
+                    case "3y":
+                        navReturn3m = value
+                    case "6y":
+                        navReturn6m = value
+                    case "1n":
+                        navReturn1y = value
+                    default:
+                        break
+                    }
+                }
+            }
+            
+            addLog("基金代码 \(code): 收益率数据解析完成: 1月=\(navReturn1m ?? 0), 3月=\(navReturn3m ?? 0), 6月=\(navReturn6m ?? 0), 1年=\(navReturn1y ?? 0)", type: .success)
+            return (navReturn1m, navReturn3m, navReturn6m, navReturn1y)
+            
         } catch {
-            addLog("基金代码 \(code): 天天基金收益率API请求失败: \(error.localizedDescription)", type: .error)
+            addLog("基金代码 \(code): 天天基金收益率API请求或正则解析失败: \(error.localizedDescription)", type: .error)
             return (nil, nil, nil, nil)
         }
     }
@@ -592,6 +591,89 @@ class FundService: ObservableObject {
             if self.logMessages.count > 100 {
                 self.logMessages.removeFirst(50)
             }
+        }
+    }
+    
+    // 新增：从pingzhongdata接口获取基金详情（包括名称和收益率）
+    func fetchFundDetailsFromEastmoney(code: String) async -> (fundName: String, returns: (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?)) {
+        addLog("基金代码 \(code): 尝试从天天基金获取详情数据", type: .network)
+        
+        let urlString = "https://fund.eastmoney.com/pingzhongdata/\(code).js"
+        guard let url = URL(string: urlString) else {
+            addLog("基金代码 \(code): 天天基金详情API URL无效", type: .error)
+            return (fundName: "N/A", returns: (nil, nil, nil, nil))
+        }
+        
+        do {
+            var request = URLRequest(url: url)
+            request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                addLog("基金代码 \(code): 天天基金详情API响应状态码非200", type: .error)
+                return (fundName: "N/A", returns: (nil, nil, nil, nil))
+            }
+            
+            guard let jsString = String(data: data, encoding: .utf8) else {
+                addLog("基金代码 \(code): 天天基金详情API数据编码失败", type: .error)
+                return (fundName: "N/A", returns: (nil, nil, nil, nil))
+            }
+            
+            var fundName = "N/A"
+            var navReturn1m: Double? = nil
+            var navReturn3m: Double? = nil
+            var navReturn6m: Double? = nil
+            var navReturn1y: Double? = nil
+            
+            // 使用正则表达式提取基金名称
+            let namePattern = "fS_name\\s*=\\s*\"([^\"]*)\""
+            if let nameRange = jsString.range(of: namePattern, options: .regularExpression) {
+                let nameString = String(jsString[nameRange])
+                if let quoteRange = nameString.range(of: "\"[^\"]*\"", options: .regularExpression) {
+                    fundName = String(nameString[quoteRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                }
+            }
+            
+            // 原有的收益率提取逻辑
+            let regex = try NSRegularExpression(pattern: "syl_(\\d+[yn])\\s*=\\s*\"([^\"]*)\"", options: [])
+            let range = NSRange(jsString.startIndex..<jsString.endIndex, in: jsString)
+            
+            regex.enumerateMatches(in: jsString, options: [], range: range) { match, _, _ in
+                guard let match = match, match.numberOfRanges == 3 else { return }
+                
+                let keyRange = match.range(at: 1)
+                let valueRange = match.range(at: 2)
+                
+                guard let keySwiftRange = Range(keyRange, in: jsString),
+                      let valueSwiftRange = Range(valueRange, in: jsString) else {
+                    return
+                }
+                
+                let key = String(jsString[keySwiftRange])
+                let valueString = String(jsString[valueSwiftRange])
+                
+                if let value = Double(valueString) {
+                    switch key {
+                    case "1y":
+                        navReturn1m = value
+                    case "3y":
+                        navReturn3m = value
+                    case "6y":
+                        navReturn6m = value
+                    case "1n":
+                        navReturn1y = value
+                    default:
+                        break
+                    }
+                }
+            }
+            
+            addLog("基金代码 \(code): 详情数据解析完成: 名称=\(fundName), 1月=\(navReturn1m ?? 0), 3月=\(navReturn3m ?? 0), 6月=\(navReturn6m ?? 0), 1年=\(navReturn1y ?? 0)", type: .success)
+            return (fundName: fundName, returns: (navReturn1m, navReturn3m, navReturn6m, navReturn1y))
+            
+        } catch {
+            addLog("基金代码 \(code): 天天基金详情API请求或正则解析失败: \(error.localizedDescription)", type: .error)
+            return (fundName: "N/A", returns: (nil, nil, nil, nil))
         }
     }
 }

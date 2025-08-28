@@ -12,7 +12,7 @@ struct AboutView: View {
                         Text("基金持仓管理工具")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                        Text("Version: 1.2.0     By: rizona.cn@gmail.com")
+                        Text("Version: 1.3.6     By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -29,11 +29,13 @@ struct AboutView: View {
                         // 核心改动：将日志内容放入一个固定高度的滚动框中
                         ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
-                                BulletPointView(text: "Version 1.3.2 \n一览页面刷新逻辑更新，优化流畅度。")
+                                BulletPointView(text: "Version 1.3.6 \nAPI数据接口冗余，日志逻辑和输出模式完善。\n近期收益率获取完善。")
                                     .foregroundColor(.secondary)
-                                BulletPointView(text: "Version 1.2.0 重大版本更新：\n重构了客户、日志页面，新增了排行页面。\n新增了API数据接口和日志逻辑、输出模式。")
+                                BulletPointView(text: "Version 1.3.0 \n一览页面逻辑更新，优化流畅度。")
                                     .foregroundColor(.secondary)
-                                BulletPointView(text: "Version 1.0.0\n初代版本发布。\n完善了基金代码导入逻辑、API调用逻辑。")
+                                BulletPointView(text: "Version 1.2.0\n重构客户、日志页面，新增排行页面。")
+                                    .foregroundColor(.secondary)
+                                BulletPointView(text: "Version 1.0.0\n初代版本。\n基金导入和API调用逻辑构建。")
                                     .foregroundColor(.secondary)
                                 // 如果未来有更多日志，可以继续在此添加
                             }

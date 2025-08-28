@@ -1,6 +1,4 @@
-//
 // SummaryView.swift
-//
 import SwiftUI
 import Foundation
 
@@ -14,12 +12,13 @@ enum SortKey: String, CaseIterable, Identifiable {
 
     var id: String { self.rawValue }
 
+    // 修正 keyPathString，使其与东财接口字段命名规范对齐
     var keyPathString: String? {
         switch self {
-        case .navReturn1m: return "navReturn1m"
-        case .navReturn3m: return "navReturn3m"
-        case .navReturn6m: return "navReturn6m"
-        case .navReturn1y: return "navReturn1y"
+        case .navReturn1m: return "syl_1y" // 东财接口近1月收益率字段
+        case .navReturn3m: return "syl_3y" // 东财接口近3月收益率字段
+        case .navReturn6m: return "syl_6y" // 东财接口近6月收益率字段
+        case .navReturn1y: return "syl_1n" // 东财接口近1年收益率字段
         case .none: return nil
         }
     }
@@ -99,6 +98,7 @@ struct SummaryView: View {
                   let funds2 = recognizedFunds[code2]?.first else {
                 return false
             }
+            // 修正：调用 getSortValue
             let value1 = getSortValue(for: funds1, key: selectedSortKey)
             let value2 = getSortValue(for: funds2, key: selectedSortKey)
 
@@ -133,12 +133,13 @@ struct SummaryView: View {
         }
     }
 
+    // 修正：根据东财字段名获取对应的值
     private func getSortValue(for fund: FundHolding, key: SortKey) -> Double? {
         switch key {
-        case .navReturn1m: return fund.navReturn1m
-        case .navReturn3m: return fund.navReturn3m
-        case .navReturn6m: return fund.navReturn6m
-        case .navReturn1y: return fund.navReturn1y
+        case .navReturn1m: return fund.navReturn1m // 假定模型中 navReturn1m 对应的是 syl_1y
+        case .navReturn3m: return fund.navReturn3m // 假定模型中 navReturn3m 对应的是 syl_3y
+        case .navReturn6m: return fund.navReturn6m // 假定模型中 navReturn6m 对应的是 syl_6y
+        case .navReturn1y: return fund.navReturn1y // 假定模型中 navReturn1y 对应的是 syl_1n
         case .none: return nil
         }
     }
@@ -176,7 +177,7 @@ struct SummaryView: View {
                         .padding(.vertical, 6)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
-                        
+                    
                         // 排序按钮，尺寸与刷新按钮一致
                         Button(action: {
                             withAnimation {
@@ -213,9 +214,9 @@ struct SummaryView: View {
                                     .clipShape(Circle())
                             }
                         }
-    
+                    
                         Spacer()
-    
+                    
                         // 刷新进度提示
                         if isRefreshing && !refreshProgressText.isEmpty {
                             Text(refreshProgressText)
@@ -223,7 +224,7 @@ struct SummaryView: View {
                                 .foregroundColor(.secondary)
                                 .padding(.trailing, 8)
                         }
-    
+                    
                         // 未识别基金提示按钮 - 只在有完全无收益率数据的基金时显示
                         if !unrecognizedFunds.isEmpty {
                             Button(action: {
@@ -234,7 +235,7 @@ struct SummaryView: View {
                                     .font(.system(size: 16))
                             }
                         }
-    
+                    
                         // 右侧刷新按钮
                         Button(action: {
                             Task {
@@ -254,7 +255,7 @@ struct SummaryView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
-    
+                
                     // 基金列表区域
                     VStack(spacing: 0) {
                         if dataManager.holdings.filter({ $0.isValid }).isEmpty {
@@ -309,15 +310,15 @@ struct SummaryView: View {
                                                             .foregroundColor(colorForValue(funds.first!.navReturn1y))
                                                     }
                                                 }
-                                                    
+                                                
                                                 Divider()
-                                                    
+                                                
                                                 HStack(alignment: .top) {
                                                     Text("持有客户:")
                                                         .font(.subheadline)
                                                         .foregroundColor(.secondary)
                                                         .fixedSize(horizontal: true, vertical: false)
-    
+                    
                                                     combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn, sortOrder: sortOrder)
                                                         .font(.subheadline)
                                                         .lineLimit(nil)
@@ -335,6 +336,7 @@ struct SummaryView: View {
                                                 fund: funds.first!,
                                                 selectedSortKey: selectedSortKey,
                                                 getColumnValue: { fund, keyPath in
+                                                    // 修正：getColumnValue 也需要返回正确的值
                                                     getColumnValue(for: fund, keyPath: keyPath)
                                                 }
                                             )
@@ -376,13 +378,13 @@ struct SummaryView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         // 修改：仅包含无效的基金
                         let fundsToRefresh = unrecognizedFunds.map { "\($0.fundName)[\($0.fundCode)]" }.joined(separator: "、")
-    
+                    
                         if !fundsToRefresh.isEmpty {
                             Text(fundsToRefresh)
                                 .font(.subheadline)
                                 .foregroundColor(.orange)
                         }
-    
+                    
                         if !failedFunds.isEmpty {
                             Text("刷新失败的基金:")
                                 .font(.subheadline)
@@ -392,7 +394,7 @@ struct SummaryView: View {
                         }
                     }
                 }
-    
+            
                 ToastView(message: "刷新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
                     .padding(.bottom, 80)
             }
@@ -526,29 +528,44 @@ struct SummaryView: View {
         }
     }
     
-    // 获取基金信息并重试
+    // 获取基金信息并重试 - 修改为使用新的接口
     private func fetchFundWithRetry(code: String) async -> (String, FundHolding?) {
-        // 尝试获取基金信息，最多重试5次，只使用天天基金API
         var retryCount = 0
-        var fetchedFundInfo: FundHolding?
-    
-        while retryCount < 5 && fetchedFundInfo == nil {
-            fetchedFundInfo = await fundService.fetchFundInfo(code: code, useOnlyEastmoney: true)
-    
-            // 修改：只要获取到净值数据就视为有效，不检查日期
-            if fetchedFundInfo != nil && fetchedFundInfo!.currentNav > 0 {
-                break
+        var fetchedFundDetails: (fundName: String, returns: (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?))?
+
+        while retryCount < 5 {
+            fetchedFundDetails = await fundService.fetchFundDetailsFromEastmoney(code: code)
+            
+            if let details = fetchedFundDetails {
+                // 判断是否有效：基金名称不为N/A，且至少有一个收益率数据不为nil
+                let hasValidName = details.fundName != "N/A"
+                let hasValidReturnData = details.returns.navReturn1m != nil || details.returns.navReturn3m != nil || details.returns.navReturn6m != nil || details.returns.navReturn1y != nil
+
+                if hasValidName && hasValidReturnData {
+                    // 构建一个FundHolding对象，只填充我们需要的字段
+                    var holding = FundHolding.invalid(fundCode: code)
+                    holding.fundName = details.fundName
+                    holding.navReturn1m = details.returns.navReturn1m
+                    holding.navReturn3m = details.returns.navReturn3m
+                    holding.navReturn6m = details.returns.navReturn6m
+                    holding.navReturn1y = details.returns.navReturn1y
+                    holding.isValid = true
+
+                    return (code, holding)
+                } else {
+                    // 如果没有有效数据，继续重试
+                    fetchedFundDetails = nil
+                }
             }
-    
+
             retryCount += 1
             if retryCount < 5 {
-                // 等待时间递增
                 let retryDelay = Double(retryCount) * 0.5
                 try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
             }
         }
-    
-        return (code, fetchedFundInfo)
+
+        return (code, nil)
     }
     
     // 处理基金获取结果
@@ -556,38 +573,41 @@ struct SummaryView: View {
         let (code, fundInfo) = result
     
         await MainActor.run {
-            // 修改：只要获取到净值数据就视为有效
-            if let fundInfo = fundInfo, fundInfo.currentNav > 0 {
-                updatedFunds[code] = fundInfo
-                refreshStats.success += 1
-                fundService.addLog("基金 \(code) 刷新成功", type: .success)
+            if let fundInfo = fundInfo {
+                let hasValidName = fundInfo.fundName != "N/A"
+                let hasValidReturnData = fundInfo.navReturn1m != nil || fundInfo.navReturn3m != nil || fundInfo.navReturn6m != nil || fundInfo.navReturn1y != nil
+            
+                if hasValidName && hasValidReturnData {
+                    updatedFunds[code] = fundInfo
+                    refreshStats.success += 1
+                    fundService.addLog("基金 \(code) 刷新成功", type: .success)
+                } else {
+                    refreshStats.fail += 1
+                    failedFunds.append(code)
+                    fundService.addLog("基金 \(code) 刷新失败：无有效名称或收益率数据", type: .error)
+                }
             } else {
                 refreshStats.fail += 1
                 failedFunds.append(code)
-                fundService.addLog("基金 \(code) 刷新失败", type: .error)
+                fundService.addLog("基金 \(code) 刷新失败：未获取到基金信息", type: .error)
             }
     
             refreshProgressText = "已完成 \(refreshStats.success + refreshStats.fail)/\(totalCount)"
         }
     }
     
-    // 更新持仓数据
+    // 更新持仓数据 - 修改为只更新名称和收益率
     private func updateHoldingsWithNewData(updatedFunds: [String: FundHolding]) {
         var newHoldings = dataManager.holdings
     
         for (index, holding) in newHoldings.enumerated() {
             if let updatedInfo = updatedFunds[holding.fundCode] {
                 newHoldings[index].fundName = updatedInfo.fundName
-                newHoldings[index].currentNav = updatedInfo.currentNav
-                newHoldings[index].navDate = updatedInfo.navDate
-                
-                // 修改：只要获取到净值数据就标记为有效
-                newHoldings[index].isValid = updatedInfo.currentNav > 0
-                
                 newHoldings[index].navReturn1m = updatedInfo.navReturn1m
                 newHoldings[index].navReturn3m = updatedInfo.navReturn3m
                 newHoldings[index].navReturn6m = updatedInfo.navReturn6m
                 newHoldings[index].navReturn1y = updatedInfo.navReturn1y
+                newHoldings[index].isValid = updatedInfo.isValid
             }
         }
     
@@ -650,7 +670,7 @@ struct FundHoldingCardLabel: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
-            
+    
             if selectedSortKey != .none {
                 VStack(alignment: .trailing) {
                     let valueString = getColumnValue(fund, selectedSortKey.keyPathString)
@@ -719,13 +739,14 @@ private func colorForValue(_ value: Double?) -> Color {
     }
 }
 
+// 修正：getColumnValue 函数，使其与新的 keyPathString 对应
 private func getColumnValue(for fund: FundHolding, keyPath: String?) -> String {
     guard let keyPath = keyPath else { return "/" }
     switch keyPath {
-    case "navReturn1m": return fund.navReturn1m?.formattedPercentage ?? "/"
-    case "navReturn3m": return fund.navReturn3m?.formattedPercentage ?? "/"
-    case "navReturn6m": return fund.navReturn6m?.formattedPercentage ?? "/"
-    case "navReturn1y": return fund.navReturn1y?.formattedPercentage ?? "/"
+    case "syl_1y": return fund.navReturn1m?.formattedPercentage ?? "/"
+    case "syl_3y": return fund.navReturn3m?.formattedPercentage ?? "/"
+    case "syl_6y": return fund.navReturn6m?.formattedPercentage ?? "/"
+    case "syl_1n": return fund.navReturn1y?.formattedPercentage ?? "/"
     default: return ""
     }
 }
