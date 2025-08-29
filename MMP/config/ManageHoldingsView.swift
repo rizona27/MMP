@@ -76,23 +76,20 @@ struct ManageHoldingsView: View {
         // 使用 NavigationStack 来管理导航
         NavigationStack {
             GeometryReader { geometry in
-                HStack(spacing: 8) { // 增加 HStack 的间距以容纳两个框架
-                    // ✨ 快速定位栏
-                    if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
-                        VStack(spacing: 2) {
-                            ScrollView(.vertical, showsIndicators: false) {
-                                ScrollViewReader { proxy in
+                // 关键修复：将 ScrollViewReader 移到最外层，包裹整个 HStack
+                ScrollViewReader { proxy in
+                    HStack(spacing: 8) { // 增加 HStack 的间距以容纳两个框架
+                        // ✨ 快速定位栏
+                        if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
+                            VStack(spacing: 2) {
+                                ScrollView(.vertical, showsIndicators: false) {
                                     VStack(spacing: 2) {
                                         ForEach(sortedSectionKeys, id: \.self) { titleChar in
                                             Button(action: {
+                                                // 修改点: 找到该字母下的第一个客户并滚动到其位置
+                                                guard let firstClientInGroup = sectionedClientGroups[titleChar]?.sorted(by: { $0.clientName < $1.clientName }).first else { return }
                                                 withAnimation {
-                                                    proxy.scrollTo(titleChar, anchor: .top)
-                                                    guard let firstClientInGroup = sectionedClientGroups[titleChar]?.sorted(by: { $0.clientName < $1.clientName }).first else { return }
-                                                    if expandedClient == firstClientInGroup.id {
-                                                        expandedClient = nil
-                                                    } else {
-                                                        expandedClient = firstClientInGroup.id
-                                                    }
+                                                    proxy.scrollTo(firstClientInGroup.id, anchor: .top)
                                                 }
                                             }) {
                                                 Text(String(titleChar))
@@ -108,30 +105,28 @@ struct ManageHoldingsView: View {
                                     }
                                     .padding(.vertical, 10)
                                 }
+                                .frame(maxHeight: .infinity)
                             }
-                            .frame(maxHeight: .infinity)
+                            .frame(width: 44, height: geometry.size.height)
+                            .background(Color(.systemGroupedBackground))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
                         }
-                        .frame(width: 44, height: geometry.size.height)
-                        .background(Color(.systemGroupedBackground))
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                        )
-                    }
 
-                    // 客户分组列表视图 (新增 VStack 包装)
-                    if groupedHoldings.isEmpty {
-                        VStack {
-                            Spacer()
-                            Text("当前没有持仓数据。")
-                                .foregroundColor(.gray)
-                            Spacer()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        VStack { // 新增 VStack
-                            ScrollViewReader { proxy in
+                        // 客户分组列表视图 (新增 VStack 包装)
+                        if groupedHoldings.isEmpty {
+                            VStack {
+                                Spacer()
+                                Text("当前没有持仓数据。")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            VStack { // 新增 VStack
                                 List {
                                     ForEach(sortedSectionKeys, id: \.self) { sectionKey in
                                         Section(header: EmptyView()) {
@@ -162,25 +157,27 @@ struct ManageHoldingsView: View {
                                                 } label: {
                                                     headerView(for: clientGroup)
                                                 }
+                                                // 修改点: 将 ID 附加到 DisclosureGroup 上，以确保滚动定位准确
+                                                .id(clientGroup.id)
                                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)) // 调整为和 ClientView 一致
                                                 .listRowSeparator(.hidden)
                                             }
                                         }
-                                        .id(sectionKey)
+                                        // 移除 Section 的 ID，避免与 DisclosureGroup 的 ID 冲突
                                     }
                                 }
                                 .listStyle(.plain)
                                 .padding(.leading, isQuickNavBarEnabled ? 0 : 16)
                                 // 移除 .refreshable 功能
                             }
+                            .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0), height: geometry.size.height) // 动态计算宽度
+                            .background(Color(.systemGroupedBackground))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
                         }
-                        .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0), height: geometry.size.height) // 动态计算宽度
-                        .background(Color(.systemGroupedBackground))
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                        )
                     }
                 }
             }
