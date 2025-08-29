@@ -9,10 +9,10 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // 程序名称和版本信息
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("基金持仓管理工具")
+                        Text("易基暴富")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                        Text("Version: 1.3.6     By: rizona.cn@gmail.com")
+                        Text("Version: 1.4.0     By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -29,11 +29,11 @@ struct AboutView: View {
                         // 核心改动：将日志内容放入一个固定高度的滚动框中
                         ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
-                                BulletPointView(text: "Version 1.3.6 \nAPI数据接口冗余，日志逻辑和输出模式完善。\n近期收益率获取完善。")
+                                BulletPointView(text: "Version 1.4.0\n修改了Logo和名称。\nAPI数据接口冗余，修正跳转功能。")
                                     .foregroundColor(.secondary)
-                                BulletPointView(text: "Version 1.3.0 \n一览页面逻辑更新，优化流畅度。")
+                                BulletPointView(text: "Version 1.3.0\n一览页面逻辑更新，日志逻辑和输出模式、近期收益率完善。")
                                     .foregroundColor(.secondary)
-                                BulletPointView(text: "Version 1.2.0\n重构客户、日志页面，新增排行页面。")
+                                BulletPointView(text: "Version 1.2.0\n重构客户、日志页面，新增排行页面，使用更流畅了。")
                                     .foregroundColor(.secondary)
                                 BulletPointView(text: "Version 1.0.0\n初代版本。\n基金导入和API调用逻辑构建。")
                                     .foregroundColor(.secondary)
@@ -50,11 +50,11 @@ struct AboutView: View {
 
                     // 程序介绍
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("程序介绍")
+                        Text("功能介绍")
                             .font(.headline)
                             .padding(.bottom, 5)
 
-                        Text("匹配管理人需求设计的工具。跟踪管理多客户基金持仓，提供最新基金净值查询、收益统计等功能。")
+                        Text("跟踪管理多客户基金持仓，提供最新基金净值查询、收益统计等功能。")
                             .font(.body)
 
                         Text("主要包括：")
@@ -62,10 +62,10 @@ struct AboutView: View {
                             .fontWeight(.medium)
                             .padding(.top, 10)
                             
-                        BulletPointView(text: "净值自动化：\n多API冗余更新基金最新净值数据。")
-                        BulletPointView(text: "多客户管理：\n按客户分组，统一查看管理持仓。")
-                        BulletPointView(text: "报告一键生成：\n模板化生成持仓收益，方便复制转发。")
-                        BulletPointView(text: "数据持久化：\n持仓数据本地保存，数据不外传泄露。")
+                        BulletPointView(text: "净值自动化：\n更新基金净值数据。")
+                        BulletPointView(text: "多客户管理：\n客户分组查看管理持仓。")
+                        BulletPointView(text: "报告一键生成：\n模板化持仓收益。")
+                        BulletPointView(text: "数据持久化：\n数据本地保存。")
                     }
 
                     Spacer()

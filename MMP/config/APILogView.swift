@@ -5,7 +5,7 @@ struct APILogView: View {
     @Environment(\.dismiss) var dismiss
     
     // 手动定义所有日志类型，并按照你想要的顺序排列
-    private let allLogTypes: [LogType] = [.success, .error, .warning, .network, .info, .cache]
+    private let allLogTypes: [LogType] = [.success, .error, .warning, .info, .network, .cache]
     
     // 使用 AppStorage 保存用户选择的日志类型
     @AppStorage("selectedLogTypes") private var storedSelectedLogTypes: String = ""
@@ -34,36 +34,95 @@ struct APILogView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 日志类型筛选器 - 优化后的三行布局
-                VStack(spacing: 8) {
-                    // 第一行 - 全选按钮
-                    HStack {
-                        // 全选按钮
+                // 日志类型筛选器 - 优化布局
+                VStack(spacing: 12) {
+                    // 第一行 - 成功、错误、警告、信息
+                    HStack(spacing: 8) {
+                        ForEach([LogType.success, .error, .warning, .info], id: \.self) { logType in
+                            LogTypeToggle(
+                                logType: logType,
+                                isSelected: Binding(
+                                    get: { selectedLogTypes.contains(logType) },
+                                    set: { isSelected in
+                                        if isSelected {
+                                            selectedLogTypes.insert(logType)
+                                        } else {
+                                            selectedLogTypes.remove(logType)
+                                        }
+                                        saveSelectedLogTypes()
+                                    }
+                                ),
+                                color: color(for: logType)
+                            )
+                        }
+                    }
+                    
+                    // 第二行 - 网络、缓存，全选按钮
+                    HStack(spacing: 8) {
+                        ForEach([LogType.network, .cache], id: \.self) { logType in
+                            LogTypeToggle(
+                                logType: logType,
+                                isSelected: Binding(
+                                    get: { selectedLogTypes.contains(logType) },
+                                    set: { isSelected in
+                                        if isSelected {
+                                            selectedLogTypes.insert(logType)
+                                        } else {
+                                            selectedLogTypes.remove(logType)
+                                        }
+                                        saveSelectedLogTypes()
+                                    }
+                                ),
+                                color: color(for: logType)
+                            )
+                        }
+                        
+                        // 占位按钮，确保对齐
+                        Button(action: {}) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "circle")
+                                    .foregroundColor(.clear)
+                                    .font(.system(size: 14))
+                                Text("占位")
+                                    .font(.caption)
+                                    .foregroundColor(.clear)
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(width: 6, height: 6)
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(true)
+                        .hidden()
+                        
+                        // 全选按钮 - 使用与LogTypeToggle相同的样式
                         Button(action: {
                             toggleAllSelection()
                             saveSelectedLogTypes()
                         }) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 4) {
                                 // 选中状态指示器
                                 Image(systemName: isAllSelected ? "checkmark.circle.fill" : "circle")
                                     .foregroundColor(isAllSelected ? .blue : .gray)
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 14))
                                 
                                 // 类型名称
                                 Text("全选")
-                                    .font(.subheadline)
+                                    .font(.caption)
                                     .foregroundColor(.primary)
                                 
                                 // 颜色标识点 (使用蓝色)
                                 Circle()
                                     .fill(.blue)
-                                    .frame(width: 8, height: 8)
+                                    .frame(width: 6, height: 6)
                             }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.clear) // 透明背景
+                                    .fill(isAllSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -71,65 +130,16 @@ struct APILogView: View {
                             )
                         }
                         .buttonStyle(PlainButtonStyle())
-                        
-                        Spacer()
                     }
-                    
-                    // 第二行和第三行 - 整体虚线框
-                    VStack(spacing: 8) {
-                        // 第二行 - 成功、错误、警告
-                        HStack(spacing: 16) {
-                            ForEach([LogType.success, .error, .warning], id: \.self) { logType in
-                                LogTypeToggle(
-                                    logType: logType,
-                                    isSelected: Binding(
-                                        get: { selectedLogTypes.contains(logType) },
-                                        set: { isSelected in
-                                            if isSelected {
-                                                selectedLogTypes.insert(logType)
-                                            } else {
-                                                selectedLogTypes.remove(logType)
-                                            }
-                                            saveSelectedLogTypes()
-                                        }
-                                    ),
-                                    color: color(for: logType)
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        // 第三行 - 网络、信息、缓存
-                        HStack(spacing: 16) {
-                            ForEach([LogType.network, .info, .cache], id: \.self) { logType in
-                                LogTypeToggle(
-                                    logType: logType,
-                                    isSelected: Binding(
-                                        get: { selectedLogTypes.contains(logType) },
-                                        set: { isSelected in
-                                            if isSelected {
-                                                selectedLogTypes.insert(logType)
-                                            } else {
-                                                selectedLogTypes.remove(logType)
-                                            }
-                                            saveSelectedLogTypes()
-                                        }
-                                    ),
-                                    color: color(for: logType)
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(12) // 内部内边距
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
-                            .foregroundColor(.gray.opacity(0.5))
-                    )
                 }
-                .padding(.horizontal, 20) // 统一设置水平内边距
-                .padding(.vertical, 12) // 统一设置垂直内边距
+                .padding(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                        .foregroundColor(.gray.opacity(0.5))
+                )
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 
                 Divider()
                 
@@ -233,7 +243,7 @@ struct APILogView: View {
     // 恢复用户选择的日志类型
     private func restoreSelectedLogTypes() {
         if let data = storedSelectedLogTypes.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode([String].self, from: data) {
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
             selectedLogTypes = Set(decoded.compactMap { LogType(rawValue: $0) })
         } else {
             // 如果没有保存的选择，默认全选
@@ -252,24 +262,24 @@ struct LogTypeToggle: View {
         Button(action: {
             isSelected.toggle()
         }) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 // 选中状态指示器
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(isSelected ? color : .gray)
-                    .font(.system(size: 18))
+                    .font(.system(size: 14))
                 
                 // 类型名称
                 Text(logType.displayName)
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundColor(.primary)
                 
                 // 颜色标识点
                 Circle()
                     .fill(color)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 6, height: 6)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? color.opacity(0.1) : Color(.systemGray6))
@@ -407,5 +417,12 @@ extension LogType {
         case .warning:
             return "警告"
         }
+    }
+}
+
+// 隐藏视图的扩展
+extension View {
+    func hidden(_ shouldHide: Bool = true) -> some View {
+        opacity(shouldHide ? 0 : 1)
     }
 }
