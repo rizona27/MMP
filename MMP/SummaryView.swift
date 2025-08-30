@@ -738,7 +738,7 @@ private func getColumnValue(for fund: FundHolding, keyPath: String?) -> String {
     switch keyPath {
     case "syl_1y": return fund.navReturn1m?.formattedPercentage ?? "/"
     case "syl_3y": return fund.navReturn3m?.formattedPercentage ?? "/"
-    case "syl_6m": return fund.navReturn6m?.formattedPercentage ?? "/"
+    case "syl_6y": return fund.navReturn6m?.formattedPercentage ?? "/"
     case "syl_1n": return fund.navReturn1y?.formattedPercentage ?? "/"
     default: return ""
     }

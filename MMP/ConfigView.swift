@@ -63,8 +63,8 @@ struct CustomCardView<Content: View>: View {
                     // 莫兰迪撞色，并额外增加颜色以确保循环的平滑性
                     let gradientColors = [
                         Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),  // 浅灰蓝 (开始)
-                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),   // 浅灰粉
-                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),   // 米杏色
+                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),  // 浅灰粉
+                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),  // 米杏色
                         Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)    // 浅灰蓝 (结束，与开始色相同，用于无缝循环)
                     ]
 
@@ -327,6 +327,9 @@ struct ConfigView: View {
     @State private var showToast = false
     @State private var toastMessage = ""
     
+    // 新增：用于控制渐变动画的进度
+    @State private var gradientAnimationProgress: CGFloat = 0.0
+
     private func showToast(message: String) {
         toastMessage = message
         showToast = true
@@ -431,6 +434,17 @@ struct ConfigView: View {
                         Divider()
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
+                            
+                        // 新增的代码块：包含纯色文本（莫兰迪天蓝色/浅蓝色）
+                        VStack {
+                            Text("Happiness around the corner.")
+                                .font(.system(size: 16))
+                                .italic()
+                                .bold(false)
+                                .foregroundColor(Color(red: 0.7, green: 0.85, blue: 0.9)) // 莫兰迪天蓝色
+                        }
+                        .frame(maxWidth: .infinity) // 确保VStack水平居中
+                        .padding(.vertical, 30) // 增加垂直方向的padding，使其往下移动大约2行
                         
                         // The original location of the About card is now empty.
                     }
@@ -572,17 +586,17 @@ struct ConfigView: View {
                 guard values.count >= headers.count else { continue }
                 
                 guard let fundCodeIndex = columnIndices["基金代码"],
-                            let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                                let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedFundCode = fundCode.padding(toLength: 6, withPad: "0", startingAt: 0)
                 
                 guard let amountIndex = columnIndices["购买金额"],
-                            let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                            let amount = Double(amountStr) else { continue }
+                                let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                let amount = Double(amountStr) else { continue }
                 let cleanedAmount = (amount * 100).rounded() / 100
                 
                 guard let sharesIndex = columnIndices["购买份额"],
-                            let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                            let shares = Double(sharesStr) else { continue }
+                                let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                let shares = Double(sharesStr) else { continue }
                 let cleanedShares = (shares * 100).rounded() / 100
                 
                 var purchaseDate = Date()
@@ -594,7 +608,7 @@ struct ConfigView: View {
                 }
                 
                 guard let clientIDIndex = columnIndices["客户号"],
-                            let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                                let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedClientID = clientID.padding(toLength: 12, withPad: "0", startingAt: 0)
 
                 var clientName: String
@@ -642,12 +656,12 @@ extension FundHolding: Hashable, Equatable {
     static func == (lhs: FundHolding, rhs: FundHolding) -> Bool {
         let calendar = Calendar.current
         return lhs.fundCode == rhs.fundCode &&
-               lhs.purchaseAmount == rhs.purchaseAmount &&
-               lhs.purchaseShares == rhs.purchaseShares &&
-               calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
-               lhs.clientID == rhs.clientID &&
-               lhs.clientName == rhs.clientName &&
-               lhs.remarks == rhs.remarks
+                lhs.purchaseAmount == rhs.purchaseAmount &&
+                lhs.purchaseShares == rhs.purchaseShares &&
+                calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
+                lhs.clientID == rhs.clientID &&
+                lhs.clientName == rhs.clientName &&
+                lhs.remarks == rhs.remarks
     }
 
     func hash(into hasher: inout Hasher) {
