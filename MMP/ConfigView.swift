@@ -1,4 +1,3 @@
-// ConfigView.swift
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -10,27 +9,25 @@ struct CustomCardView<Content: View>: View {
     var backgroundColor: Color = .white
     var contentForegroundColor: Color = .primary
     var action: (() -> Void)? = nil
-    
-    // 新增属性用于可选的 Toggle
     var toggleBinding: Binding<Bool>? = nil
     var toggleTint: Color = .accentColor
 
     @ViewBuilder let content: (Color) -> Content
 
     var body: some View {
-        let cardContent = VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        let cardContent = VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
                 if let imageName = imageName {
                     Image(systemName: imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 36, height: 36)
+                        .frame(width: 28, height: 28)
                         .foregroundColor(contentForegroundColor)
                 }
 
                 if let title = title {
                     Text(title)
-                        .font(.headline)
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(contentForegroundColor)
                 }
 
@@ -47,15 +44,15 @@ struct CustomCardView<Content: View>: View {
 
             if let description = description, toggleBinding == nil {
                 Text(description)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundColor(contentForegroundColor.opacity(0.7))
                     .lineLimit(2)
             }
             
             content(contentForegroundColor)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
         .background(backgroundColor)
         .cornerRadius(15)
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
@@ -78,7 +75,7 @@ struct FundAPIView: View {
     var body: some View {
         CustomCardView(
             title: "数据接口",
-            description: "选择基金数据来源",
+            description: nil,
             imageName: "network",
             backgroundColor: Color.blue.opacity(0.1),
             contentForegroundColor: .blue
@@ -86,13 +83,9 @@ struct FundAPIView: View {
             Picker("数据接口", selection: $selectedFundAPI) {
                 ForEach(FundAPI.allCases) { api in
                     Text(api.rawValue).tag(api)
-                        .foregroundColor(.primary) // 使用系统主色，会根据颜色模式自动调整
                 }
             }
-            .pickerStyle(MenuPickerStyle())
-            .background(Color.white.opacity(0.5))
-            .cornerRadius(8)
-            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .pickerStyle(.segmented)
         }
     }
 }
@@ -109,12 +102,12 @@ struct ManageHoldingsMenuView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 List {
                     Section {
                         CustomCardView(
                             title: "新增持仓",
-                            description: "手动添加新的基金持仓记录",
+                            description: "添加新的基金持仓记录",
                             imageName: "plus.circle.fill",
                             backgroundColor: Color.green.opacity(0.1),
                             contentForegroundColor: .green
@@ -124,11 +117,11 @@ struct ManageHoldingsMenuView: View {
                         }
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
-                        .scaleEffect(0.85)
+                        .padding(.bottom, 12)
 
                         CustomCardView(
                             title: "编辑持仓",
-                            description: "管理现有基金持仓，包括修改和删除",
+                            description: "管理现有持仓，包括修改和删除",
                             imageName: "pencil.circle.fill",
                             backgroundColor: Color.blue.opacity(0.1),
                             contentForegroundColor: .blue
@@ -138,11 +131,11 @@ struct ManageHoldingsMenuView: View {
                         }
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
-                        .scaleEffect(0.85)
+                        .padding(.bottom, 12)
 
                         CustomCardView(
-                            title: "清空所有持仓",
-                            description: "删除所有基金持仓数据，此操作不可撤销",
+                            title: "清空持仓",
+                            description: "删除所有基金持仓数据，注意：此操作不可撤销",
                             imageName: "trash.circle.fill",
                             backgroundColor: Color.red.opacity(0.1),
                             contentForegroundColor: .red
@@ -152,11 +145,12 @@ struct ManageHoldingsMenuView: View {
                         }
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
-                        .scaleEffect(0.85)
+                        .padding(.top, 24)
                     }
                 }
                 .listStyle(.plain)
                 .padding(.top, 20)
+                .padding(.horizontal, 16)
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -180,8 +174,8 @@ struct ManageHoldingsMenuView: View {
                     .environmentObject(fundService)
             }
             .confirmationDialog("确认清空所有持仓数据？",
-                                isPresented: $showingClearConfirmation,
-                                titleVisibility: .visible) {
+                                 isPresented: $showingClearConfirmation,
+                                 titleVisibility: .visible) {
                 Button("清空", role: .destructive) {
                     dataManager.holdings.removeAll()
                     dataManager.saveData()
@@ -213,9 +207,27 @@ struct ThemeModeView: View {
                 Text("系统").tag(ThemeMode.system)
             }
             .pickerStyle(.segmented)
-            .background(Color.white.opacity(0.5))
-            .cornerRadius(8)
-            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        }
+    }
+}
+
+// MARK: - 快速定位栏选择视图
+struct QuickNavBarView: View {
+    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
+    
+    var body: some View {
+        CustomCardView(
+            title: "定位栏",
+            description: nil,
+            imageName: "slider.horizontal.3",
+            backgroundColor: Color.purple.opacity(0.1),
+            contentForegroundColor: .purple
+        ) { fgColor in
+            Picker("定位栏", selection: $isQuickNavBarEnabled) {
+                Text("开启").tag(true)
+                Text("关闭").tag(false)
+            }
+            .pickerStyle(.segmented)
         }
     }
 }
@@ -253,12 +265,9 @@ struct ConfigView: View {
     @State private var showingManageHoldingsMenuSheet = false
     @State private var showingAPILogSheet = false
     @State private var showingAboutSheet = false
-    @State private var showingManageFavoritesSheet = false
     @State private var isImporting = false
     @State private var isExporting = false
     @State private var document: CSVExportDocument?
-    
-    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
     
     @State private var showToast = false
     @State private var toastMessage = ""
@@ -269,50 +278,17 @@ struct ConfigView: View {
     }
 
     func onAppear() {
-        // ...
     }
     
     func onDisappear() {
-        // ...
     }
 
     var body: some View {
         NavigationView {
             ZStack {
                 ScrollView {
-                    VStack(spacing: 8) {
-                        // 第一行：管理持仓和管理收藏夹
-                        HStack(spacing: 8) {
-                            CustomCardView(
-                                title: "管理持仓",
-                                description: "新增、编辑或清空持仓数据",
-                                imageName: "folder.fill",
-                                backgroundColor: Color.blue.opacity(0.1),
-                                contentForegroundColor: .blue,
-                                action: {
-                                    showingManageHoldingsMenuSheet = true
-                                }
-                            ) { _ in EmptyView() }
-                            .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
-                                    
-                            CustomCardView(
-                                title: "管理收藏夹",
-                                description: "添加、编辑和删除常用链接",
-                                imageName: "heart.circle.fill",
-                                backgroundColor: Color.red.opacity(0.1),
-                                contentForegroundColor: .red,
-                                action: {
-                                    showingManageFavoritesSheet = true
-                                }
-                            ) { _ in EmptyView() }
-                            .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
-                        }
-                        .padding(.horizontal, 8)
-                                
-                        // 第二行：导入数据和导出数据
-                        HStack(spacing: 8) {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
                             CustomCardView(
                                 title: "导入数据",
                                 description: "从CSV文件导入持仓数据",
@@ -324,8 +300,7 @@ struct ConfigView: View {
                                 }
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
-                                    
+                            
                             CustomCardView(
                                 title: "导出数据",
                                 description: "导出持仓数据到CSV文件",
@@ -338,41 +313,22 @@ struct ConfigView: View {
                                 }
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
                         }
                         .padding(.horizontal, 8)
-                                
-                        // 第三行：快速定位和主题模式
-                        HStack(spacing: 8) {
+                        
+                        HStack(spacing: 12) {
                             CustomCardView(
-                                title: "定位栏",
-                                description: nil,
-                                imageName: "slider.horizontal.3",
-                                backgroundColor: Color.purple.opacity(0.1),
-                                contentForegroundColor: .purple,
-                                action: nil,
-                                toggleBinding: $isQuickNavBarEnabled
-                            ) { fgColor in
-                                Text("启用或禁用快速定位栏")
-                                    .font(.caption)
-                                    .foregroundColor(fgColor.opacity(0.7))
-                                    .lineLimit(2)
-                            }
+                                title: "管理持仓",
+                                description: "新增、编辑或清空持仓数据",
+                                imageName: "folder.fill",
+                                backgroundColor: Color.blue.opacity(0.1),
+                                contentForegroundColor: .blue,
+                                action: {
+                                    showingManageHoldingsMenuSheet = true
+                                }
+                            ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
-                                    
-                            ThemeModeView() // 主题模式放在这里
-                                .frame(maxWidth: .infinity)
-                                .scaleEffect(0.9)
-                        }
-                        .padding(.horizontal, 8)
-                                
-                        // 第四行：数据接口和日志查询
-                        HStack(spacing: 8) {
-                            FundAPIView() // 数据接口放在这里
-                                .frame(maxWidth: .infinity)
-                                .scaleEffect(0.9)
-                                    
+                            
                             CustomCardView(
                                 title: "日志查询",
                                 description: "API请求与响应日志",
@@ -384,19 +340,31 @@ struct ConfigView: View {
                                 }
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
-                            .scaleEffect(0.9)
                         }
                         .padding(.horizontal, 8)
-                        
-                        // 添加分割线
+
+                        HStack(spacing: 12) {
+                            QuickNavBarView()
+                                .frame(maxWidth: .infinity)
+                            
+                            ThemeModeView()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, 8)
+
+                        HStack(spacing: 12) {
+                            FundAPIView()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal, 8)
+
                         Divider()
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
-                            
-                        // 关于卡片
+
                         CustomCardView(
                             title: "关于",
-                            description: "查看程序版本信息及相关说明",
+                            description: "程序版本信息和说明",
                             imageName: "info.circle.fill",
                             backgroundColor: Color.gray.opacity(0.1),
                             contentForegroundColor: .secondary,
@@ -405,7 +373,6 @@ struct ConfigView: View {
                             }
                         ) { _ in EmptyView() }
                         .padding(.horizontal, 8)
-                        .scaleEffect(0.9)
                     }
                     .padding(.vertical, 8)
                 }
@@ -432,10 +399,6 @@ struct ConfigView: View {
                     ManageHoldingsMenuView()
                         .environmentObject(dataManager)
                         .environmentObject(fundService)
-                }
-                .sheet(isPresented: $showingManageFavoritesSheet) {
-                    ManageFavoritesView()
-                        .environmentObject(dataManager)
                 }
                 .sheet(isPresented: $showingAPILogSheet) {
                     APILogView()
@@ -496,16 +459,14 @@ struct ConfigView: View {
             }
             
             let data = try String(contentsOf: url, encoding: .utf8)
-            let lines = data.components(separatedBy: "\n")
+            let lines = data.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             guard lines.count > 1 else {
                 self.showToast(message: "导入失败：CSV文件为空或只有标题行。")
                 return
             }
             
-            // 解析CSV头部
             let headers = lines[0].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
             
-            // 定义列名映射
             let columnMapping: [String: [String]] = [
                 "客户姓名": ["客户姓名", "姓名"],
                 "基金代码": ["基金代码", "代码"],
@@ -515,8 +476,7 @@ struct ConfigView: View {
                 "客户号": ["客户号", "核心客户号"],
                 "备注": ["备注"]
             ]
-            
-            // 查找列索引
+
             var columnIndices = [String: Int]()
             var missingRequiredHeaders: [String] = []
 
@@ -540,44 +500,46 @@ struct ConfigView: View {
                 return
             }
             
-            // 解析数据行
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+
+            let existingHoldingsSet: Set<FundHolding> = Set(dataManager.holdings)
+
             var importedCount = 0
             for i in 1..<lines.count {
-                let values = lines[i].components(separatedBy: ",")
+                let values = lines[i].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
                 guard values.count >= headers.count else { continue }
                 
                 guard let fundCodeIndex = columnIndices["基金代码"],
-                        let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                      let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedFundCode = fundCode.padding(toLength: 6, withPad: "0", startingAt: 0)
                 
                 guard let amountIndex = columnIndices["购买金额"],
-                        let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                        let amount = Double(amountStr) else { continue }
+                      let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      let amount = Double(amountStr) else { continue }
                 let cleanedAmount = (amount * 100).rounded() / 100
                 
                 guard let sharesIndex = columnIndices["购买份额"],
-                        let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                        let shares = Double(sharesStr) else { continue }
+                      let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      let shares = Double(sharesStr) else { continue }
                 let cleanedShares = (shares * 100).rounded() / 100
                 
                 var purchaseDate = Date()
                 if let dateIndex = columnIndices["购买日期"],
-                    let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd"
+                   let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     if let date = dateFormatter.date(from: dateStr) {
                         purchaseDate = date
                     }
                 }
                 
                 guard let clientIDIndex = columnIndices["客户号"],
-                        let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                      let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedClientID = clientID.padding(toLength: 12, withPad: "0", startingAt: 0)
 
                 var clientName: String
                 if let clientNameIndex = columnIndices["客户姓名"],
-                    let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                    !nameFromCSV.isEmpty {
+                   let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !nameFromCSV.isEmpty {
                     clientName = nameFromCSV
                 } else {
                     clientName = cleanedClientID
@@ -594,11 +556,14 @@ struct ConfigView: View {
                     purchaseDate: purchaseDate,
                     remarks: remarks
                 )
-                
-                dataManager.holdings.append(newHolding)
-                importedCount += 1
-                
-                fundService.addLog("导入记录: \(clientName)-\(cleanedFundCode) 金额: \(cleanedAmount) 份额: \(cleanedShares)", type: .info)
+
+                if !existingHoldingsSet.contains(newHolding) {
+                    dataManager.holdings.append(newHolding)
+                    importedCount += 1
+                    fundService.addLog("导入记录: \(clientName)-\(cleanedFundCode) 金额: \(cleanedAmount) 份额: \(cleanedShares)", type: .info)
+                } else {
+                    fundService.addLog("跳过重复记录: \(clientName)-\(cleanedFundCode)", type: .info)
+                }
             }
             
             dataManager.saveData()
@@ -609,5 +574,31 @@ struct ConfigView: View {
             fundService.addLog("导入失败: \(error.localizedDescription)", type: .error)
             self.showToast(message: "导入失败: \(error.localizedDescription)")
         }
+    }
+}
+
+extension FundHolding: Hashable, Equatable {
+    static func == (lhs: FundHolding, rhs: FundHolding) -> Bool {
+        let calendar = Calendar.current
+        return lhs.fundCode == rhs.fundCode &&
+                lhs.purchaseAmount == rhs.purchaseAmount &&
+                lhs.purchaseShares == rhs.purchaseShares &&
+                calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
+                lhs.clientID == rhs.clientID &&
+                lhs.clientName == rhs.clientName &&
+                lhs.remarks == rhs.remarks
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(fundCode)
+        hasher.combine(purchaseAmount)
+        hasher.combine(purchaseShares)
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: purchaseDate)
+        hasher.combine(dateComponents.year)
+        hasher.combine(dateComponents.month)
+        hasher.combine(dateComponents.day)
+        hasher.combine(clientID)
+        hasher.combine(clientName)
+        hasher.combine(remarks)
     }
 }

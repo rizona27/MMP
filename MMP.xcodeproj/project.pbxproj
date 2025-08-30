@@ -7,12 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A32C2D3E2E40AAD1009B7A0F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */; };
-		A32C2D402E40AAEC009B7A0F /* ManageFavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */; };
-		A32C2D422E40B131009B7A0F /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D412E40B131009B7A0F /* SafariView.swift */; };
-		A32C2D442E40B5E2009B7A0F /* AddFavoriteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */; };
-		A32C2D462E40B5F7009B7A0F /* EditFavoriteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */; };
-		A32C2D482E40B6FC009B7A0F /* EditFavoritesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */; };
 		A32F7E902E3A04F10016A1D6 /* AddHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */; };
 		A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */; };
 		A32F7E942E3A051C0016A1D6 /* EditHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */; };
@@ -35,12 +29,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
-		A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageFavoritesView.swift; sourceTree = "<group>"; };
-		A32C2D412E40B131009B7A0F /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
-		A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFavoriteView.swift; sourceTree = "<group>"; };
-		A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditFavoriteView.swift; sourceTree = "<group>"; };
-		A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditFavoritesListView.swift; sourceTree = "<group>"; };
 		A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHoldingView.swift; sourceTree = "<group>"; };
 		A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageHoldingsView.swift; sourceTree = "<group>"; };
 		A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHoldingView.swift; sourceTree = "<group>"; };
@@ -104,7 +92,6 @@
 				A3B1124A2E3904EE00FD9CDA /* ClientView.swift */,
 				A39EE4652E56E7E3001A0F4C /* TopPerformersView.swift */,
 				A3FC14902E3E6BFE00545617 /* SummaryView.swift */,
-				A32C2D3D2E40AAD0009B7A0F /* FavoritesView.swift */,
 				A3B1124C2E39060900FD9CDA /* ConfigView.swift */,
 				A3FC14962E3EF2AA00545617 /* config */,
 				A3B112462E39048D00FD9CDA /* DataManager.swift */,
@@ -132,13 +119,8 @@
 				A3EEF58D2E3C422300EE105D /* AboutView.swift */,
 				A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */,
 				A3B112502E390A6800FD9CDA /* APILogView.swift */,
-				A32C2D432E40B5E2009B7A0F /* AddFavoriteView.swift */,
 				A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */,
-				A32C2D452E40B5F7009B7A0F /* EditFavoriteView.swift */,
-				A32C2D472E40B6FC009B7A0F /* EditFavoritesListView.swift */,
-				A32C2D412E40B131009B7A0F /* SafariView.swift */,
 				A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */,
-				A32C2D3F2E40AAEC009B7A0F /* ManageFavoritesView.swift */,
 			);
 			path = config;
 			sourceTree = "<group>";
@@ -215,24 +197,18 @@
 			files = (
 				A3B112472E39048D00FD9CDA /* DataManager.swift in Sources */,
 				A3FC14912E3E6BFE00545617 /* SummaryView.swift in Sources */,
-				A32C2D482E40B6FC009B7A0F /* EditFavoritesListView.swift in Sources */,
-				A32C2D402E40AAEC009B7A0F /* ManageFavoritesView.swift in Sources */,
 				A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */,
 				A3B1124B2E3904EF00FD9CDA /* ClientView.swift in Sources */,
 				A3948F9E2E54C43800C5768F /* ToastView.swift in Sources */,
 				A3B112512E390A6800FD9CDA /* APILogView.swift in Sources */,
-				A32C2D462E40B5F7009B7A0F /* EditFavoriteView.swift in Sources */,
 				A32F7E962E3A09B10016A1D6 /* HoldingRow.swift in Sources */,
 				A39EE4662E56E7E3001A0F4C /* TopPerformersView.swift in Sources */,
-				A32C2D442E40B5E2009B7A0F /* AddFavoriteView.swift in Sources */,
 				A32F7E942E3A051C0016A1D6 /* EditHoldingView.swift in Sources */,
 				A3B1124D2E39060900FD9CDA /* ConfigView.swift in Sources */,
 				A3EEF58E2E3C422300EE105D /* AboutView.swift in Sources */,
-				A32C2D422E40B131009B7A0F /* SafariView.swift in Sources */,
 				A3B1124F2E3906D100FD9CDA /* FundModels.swift in Sources */,
 				A3FC14932E3E6FAC00545617 /* TableColumn.swift in Sources */,
 				A3B112492E3904B500FD9CDA /* FundService.swift in Sources */,
-				A32C2D3E2E40AAD1009B7A0F /* FavoritesView.swift in Sources */,
 				A3425FDE2E3854DD00E5A762 /* ContentView.swift in Sources */,
 				A3425FDC2E3854DD00E5A762 /* MMPApp.swift in Sources */,
 				A32F7E902E3A04F10016A1D6 /* AddHoldingView.swift in Sources */,

@@ -1,7 +1,6 @@
 import SwiftUI
 import Foundation
 
-// MARK: - String 扩展用于生成莫兰迪色
 extension String {
     func morandiColor() -> Color {
         var hash = 0
@@ -17,7 +16,6 @@ extension String {
     }
 }
 
-// MARK: - Color 扩展用于根据背景亮度调整文字颜色
 extension Color {
     func luminance() -> Double {
         var r: CGFloat = 0
@@ -37,7 +35,6 @@ extension Color {
     }
 }
 
-// MARK: - Double 扩展
 extension Double {
     var formattedPercentage: String {
         let formatter = NumberFormatter()
@@ -48,7 +45,6 @@ extension Double {
     }
 }
 
-// MARK: - Date 扩展
 extension Date {
     func isOlderThan(minutes: Int) -> Bool {
         let calendar = Calendar.current
@@ -57,7 +53,6 @@ extension Date {
     }
 }
 
-// 定义一个新的结构体来表示客户分组
 struct ClientGroup: Identifiable {
     let id: String
     let clientName: String
@@ -87,7 +82,6 @@ struct ClientView: View {
     
     @State private var scrollViewProxy: ScrollViewProxy?
     
-    // 自定义排序器，用于按拼音排序
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
             return s1.localizedStandardCompare(s2) == .orderedAscending
@@ -96,7 +90,6 @@ struct ClientView: View {
         }
     }
 
-    // 计算属性：获取所有被置顶的基金
     var pinnedHoldings: [FundHolding] {
         dataManager.holdings.filter { $0.isPinned }
             .sorted { (h1, h2) -> Bool in
@@ -104,7 +97,6 @@ struct ClientView: View {
             }
     }
 
-    // 计算属性：按客户名称分组后的数据
     var groupedHoldingsByClientName: [ClientGroup] {
         let allHoldings = dataManager.holdings
 
@@ -147,7 +139,6 @@ struct ClientView: View {
         return clientGroups
     }
 
-    // 计算属性：用于按首字母分组，以支持快速定位条
     var sectionedClientGroups: [Character: [ClientGroup]] {
         var sections: [Character: [ClientGroup]] = [:]
 
@@ -172,7 +163,6 @@ struct ClientView: View {
         return sections
     }
 
-    // 计算属性：用于快速定位条的标题
     var sortedSectionKeys: [Character] {
         sectionedClientGroups.keys.sorted { (char1, char2) -> Bool in
             if char1 == "★" { return true }
@@ -182,13 +172,11 @@ struct ClientView: View {
             return String(char1).localizedStandardCompare(String(char2)) == .orderedAscending
         }
     }
-    
-    // 检查是否有任何卡片被展开
+
     var areAnyCardsExpanded: Bool {
         !expandedClients.isEmpty
     }
-    
-    // 搜索结果列表视图
+
     private func searchResultsListView() -> some View {
         List {
             let searchResults = dataManager.holdings.filter {
@@ -223,7 +211,6 @@ struct ClientView: View {
         .padding(.bottom, 20)
     }
 
-    // 置顶区域视图
     private func pinnedHoldingsSection() -> some View {
         Section(header: EmptyView().id("★")) {
             DisclosureGroup(
@@ -278,7 +265,6 @@ struct ClientView: View {
         }
     }
 
-    // 单个客户分组视图
     private func clientGroupSection(clientGroup: ClientGroup, sectionKey: Character) -> some View {
         let baseColor = clientGroup.id.morandiColor()
         
@@ -307,23 +293,22 @@ struct ClientView: View {
             }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                // 这是渐变条，也是点击区域
                 HStack(alignment: .center) {
                     Text("**\(clientGroup.clientName)**")
                         .font(.subheadline)
-                        .foregroundColor(colorScheme == .dark ? .white : .black) // 深色模式白色字体，浅色模式黑色字体
+                        .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if !clientGroup.clientID.isEmpty {
                         Text("(\(clientGroup.clientID))")
                             .font(.caption.monospaced())
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // 深色模式白色字体，浅色模式黑色字体
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                     }
                     Spacer()
                     
                     Text("持仓数: \(clientGroup.holdings.count)支")
                         .font(.caption)
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8)) // 深色模式白色字体，浅色模式黑色字体
+                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
@@ -340,12 +325,11 @@ struct ClientView: View {
                 .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
             }
         }
-        .id(clientGroup.id) // 添加ID以便滚动定位
+        .id(clientGroup.id)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
     }
     
-    // 折叠/展开所有卡片的操作
     private func toggleAllCards() {
         withAnimation {
             if areAnyCardsExpanded {
@@ -363,13 +347,12 @@ struct ClientView: View {
     // MARK: - Main Body
     var body: some View {
         NavigationView {
-            GeometryReader { geometry in // 使用 GeometryReader 来获取可用空间
+            GeometryReader { geometry in
                 VStack(spacing: 0) {
                     if !searchText.isEmpty {
                         searchResultsListView()
                     } else {
-                        HStack(spacing: 8) { // 增加 HStack 的间距以容纳两个框架
-                            // ✨ 快速定位栏
+                        HStack(spacing: 8) {
                             if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
                                 VStack(spacing: 2) {
                                     ScrollView(.vertical, showsIndicators: false) {
@@ -377,7 +360,6 @@ struct ClientView: View {
                                             ForEach(sortedSectionKeys, id: \.self) { titleChar in
                                                 Button(action: {
                                                     withAnimation {
-                                                        // 只滚动到第一个客户分组，不展开
                                                         if titleChar == "★" {
                                                             scrollViewProxy?.scrollTo("Pinned", anchor: .top)
                                                         } else if let firstClient = sectionedClientGroups[titleChar]?.first {
@@ -409,7 +391,6 @@ struct ClientView: View {
                                 )
                             }
                             
-                            // 客户分组列表视图 (新增 VStack 包装)
                             if groupedHoldingsByClientName.isEmpty && pinnedHoldings.isEmpty {
                                 VStack {
                                     Spacer()
@@ -439,7 +420,6 @@ struct ClientView: View {
                                         .onAppear {
                                             scrollViewProxy = proxy
                                         }
-                                        // 移除 .refreshable 功能
                                     }
                                 }
                                 .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0) - 4, height: geometry.size.height)
@@ -485,7 +465,7 @@ struct ClientView: View {
                         .disabled(isRefreshing)
                     }
                 }
-            } // GeometryReader 结束
+            } 
         }
         .onChange(of: searchText) { _, newValue in
             loadedSearchResultCount = 10

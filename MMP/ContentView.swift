@@ -1,102 +1,85 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var dataManager: DataManager
     @StateObject private var fundService = FundService()
 
     @State private var showSplash = true
-    @State private var selectedTab = 2
+    @State private var selectedTab = 0
     @State private var splashOpacity: Double = 1.0
+    
+    @State private var startPoint = UnitPoint.topLeading
+    @State private var endPoint = UnitPoint.bottomTrailing
 
     var body: some View {
         ZStack {
-            // 主应用视图，当 showSplash 为 false 时显示
             NavigationView {
                 TabView(selection: $selectedTab) {
+                    SummaryView()
+                        .tabItem {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                            Text("一览")
+                        }
+                        .tag(0)
+                        .environmentObject(dataManager)
+                        .environmentObject(fundService)
+                    
                     ClientView()
                         .tabItem {
                             Image(systemName: "dollarsign.circle")
                             Text("客户")
                         }
-                        .tag(0)
+                        .tag(1)
                         .environmentObject(dataManager)
                         .environmentObject(fundService)
-                        .animation(.easeInOut(duration: 0.4), value: selectedTab)
-                        .transition(.slide) // 使用内置的 .slide 过渡效果
                     
                     TopPerformersView()
                         .tabItem {
                             Image(systemName: "list.bullet.rectangle.portrait")
                             Text("排名")
                         }
-                        .tag(1)
-                        .environmentObject(dataManager)
-                        .environmentObject(fundService)
-                        .animation(.easeInOut(duration: 0.4), value: selectedTab)
-                        .transition(.slide) // 使用内置的 .slide 过渡效果
-
-                    SummaryView()
-                        .tabItem {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                            Text("一览")
-                        }
                         .tag(2)
                         .environmentObject(dataManager)
                         .environmentObject(fundService)
-                        .animation(.easeInOut(duration: 0.4), value: selectedTab)
-                        .transition(.slide) // 使用内置的 .slide 过渡效果
-
-                    FavoritesView()
-                        .tabItem {
-                            Image(systemName: "heart.fill")
-                            Text("收藏")
-                        }
-                        .tag(3)
-                        .environmentObject(dataManager)
-                        .environmentObject(fundService)
-                        .animation(.easeInOut(duration: 0.4), value: selectedTab)
-                        .transition(.slide) // 使用内置的 .slide 过渡效果
 
                     ConfigView()
                         .tabItem {
                             Image(systemName: "gearshape")
                             Text("设置")
                         }
-                        .tag(4)
+                        .tag(3)
                         .environmentObject(dataManager)
                         .environmentObject(fundService)
-                        .animation(.easeInOut(duration: 0.4), value: selectedTab)
-                        .transition(.slide) // 使用内置的 .slide 过渡效果
                 }
             }
             .opacity(showSplash ? 0 : 1)
 
-            // 启动动画视图
             if showSplash {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Less")
                         .font(.system(size: 50, weight: .light, design: .serif))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 6)
+                        .foregroundColor(.black)
+                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
                     Text("is")
                         .font(.system(size: 35, weight: .light, design: .serif))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 6)
+                        .foregroundColor(.black)
+                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
                     Text("More")
                         .font(.system(size: 70, weight: .bold, design: .serif))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 6)
+                        .foregroundColor(.black)
+                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
                     Text("Finding Abundance Through Subtraction")
                         .font(.custom("HelveticaNeue-Light", size: 18))
-                        .foregroundColor(.white.opacity(0.8))
-                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 4)
+                        .foregroundColor(.black.opacity(0.8))
+                        .shadow(color: .white.opacity(0.3), radius: 4, x: 0, y: 4)
                         .padding(.top, 25)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.leading, 30)
                 .padding(.top, 250)
                 .background(
-                    LinearGradient(gradient: Gradient(colors: [Color(hex: "99A9E9"), Color(hex: "7585D0")]), startPoint: .top, endPoint: .bottom)
+                    LinearGradient(gradient: Gradient(colors: [Color(hex: "F5F5DC"), Color(hex: "FFFFFF")]), startPoint: startPoint, endPoint: endPoint)
                 )
                 .edgesIgnoringSafeArea(.all)
                 .opacity(splashOpacity)
@@ -104,8 +87,15 @@ struct ContentView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                         withAnimation(.easeOut(duration: 1.5)) {
                             self.splashOpacity = 0.0
-                            self.showSplash = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                self.showSplash = false
+                            }
                         }
+                    }
+
+                    withAnimation(.linear(duration: 5.0).repeatForever(autoreverses: true)) {
+                        self.startPoint = UnitPoint(x: 1.0, y: 0.0)
+                        self.endPoint = UnitPoint(x: 0.0, y: 1.0)
                     }
                 }
             }
@@ -113,11 +103,15 @@ struct ContentView: View {
     }
 }
 
-// 颜色扩展，用于方便地使用十六进制颜色
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)
         var rgbValue: UInt64 = 0
+        
+        if hex.hasPrefix("#") {
+            scanner.currentIndex = scanner.string.index(after: scanner.currentIndex)
+        }
+        
         scanner.scanHexInt64(&rgbValue)
 
         let r = Double((rgbValue & 0xFF0000) >> 16) / 255.0

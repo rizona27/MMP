@@ -126,7 +126,7 @@ struct TopPerformersView: View {
         NavigationView {
             ZStack(alignment: .bottom) {
                 GeometryReader { geometry in
-                    let totalWidth = geometry.size.width - 4 // 减去左右总共的 padding
+                    let totalWidth = geometry.size.width - 4
                     let numberWidth: CGFloat = totalWidth * 0.08
                     let codeNameWidth: CGFloat = totalWidth * 0.22
                     let amountWidth: CGFloat = totalWidth * 0.12
@@ -136,7 +136,6 @@ struct TopPerformersView: View {
                     let clientWidth: CGFloat = totalWidth * 0.20
                     
                     VStack(alignment: .leading, spacing: 0) {
-                        // 筛选条件输入区域
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 12) {
                                 FilterFieldView(title: "代码/名称", placeholder: "输入代码或名称", text: $fundCodeFilterInput)
@@ -169,10 +168,8 @@ struct TopPerformersView: View {
                             }
                         }
                         .padding(.vertical, 12)
-                        
-                        // 表格部分 - 移除多余的水平内边距
+
                         VStack(alignment: .leading, spacing: 0) {
-                            // 列表头
                             HStack(alignment: .center, spacing: 0) {
                                 Group {
                                     Text("#")
@@ -202,8 +199,7 @@ struct TopPerformersView: View {
                             }
                             .background(Color(.systemGray5))
                             .frame(height: 32)
-                            
-                            // 表格内容
+
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 0) {
                                     ForEach(filteredAndSortedHoldings.indices, id: \.self) { index in
@@ -264,7 +260,7 @@ struct TopPerformersView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 2) // 将统一的水平内边距应用于整个 VStack
+                    .padding(.horizontal, 2)
                 }
                 .onTapGesture {
                     self.hideKeyboard()
