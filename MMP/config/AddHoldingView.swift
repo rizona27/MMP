@@ -1,9 +1,6 @@
 import SwiftUI
 
-// MARK: - String Extension for Input Filtering (Moved to a common file or ensure it's globally accessible if needed by other views)
 extension String {
-    /// Filters the string to keep only numbers and at most one decimal point.
-    /// This function does not truncate length; length is handled by Binding.
     func filterNumericsAndDecimalPoint() -> String {
         var filtered = ""
         var hasDecimal = false
@@ -12,18 +9,15 @@ extension String {
             if char.isNumber {
                 filtered.append(char)
             } else if char == "." && !hasDecimal {
-                if !filtered.isEmpty { // Avoid starting with .
+                if !filtered.isEmpty {
                     filtered.append(char)
                     hasDecimal = true
                 }
             }
-            // Ignore all other non-numeric and non-decimal characters
         }
         return filtered
     }
 
-    /// Filters the string to keep only Chinese characters, English letters, and at most one non-consecutive space.
-    /// Any characters that do not conform to these rules will be ignored.
     func filterAllowedNameCharacters() -> String {
         var result = ""
         var lastCharWasSpace = false
@@ -37,12 +31,10 @@ extension String {
                 result.append(char)
                 lastCharWasSpace = false
             } else if isSpace && !lastCharWasSpace && !result.isEmpty {
-                // Allow single spaces, but not consecutive spaces, and not as the first or last character of the string
                 result.append(char)
                 lastCharWasSpace = true
             }
         }
-        // Ensure no trailing spaces
         return result.trimmingTrailingSpaces()
     }
 
@@ -55,7 +47,6 @@ extension String {
     }
 }
 
-// MARK: - Helper Button Style (Moved to a common file or ensure it's globally accessible if needed by other views)
 struct CardButtonStyle: ButtonStyle {
     var backgroundColor: Color
     var foregroundColor: Color = .primary
@@ -165,7 +156,7 @@ struct AddHoldingView: View {
                     VStack(alignment: .leading) {
                         Text("选填信息")
                             .font(.headline)
-                            .foregroundColor(.secondary) // .secondary color adapts automatically to dark mode
+                            .foregroundColor(.secondary)
                             .padding(.horizontal)
 
                         inputCard(title: "客户号", required: false, error: .constant(nil)) {
@@ -209,16 +200,16 @@ struct AddHoldingView: View {
                 }
                 .padding(.top)
             }
-            .navigationTitle("") // Added navigation title
-            .navigationBarTitleDisplayMode(.inline) // Display title inline
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "chevron.backward") // Changed to icon
-                            .font(.title3) // Added font size
-                            .foregroundColor(.accentColor) // Added accent color
+                        Image(systemName: "chevron.backward")
+                            .font(.title3)
+                            .foregroundColor(.accentColor)
                     }
                 }
             }
@@ -232,7 +223,7 @@ struct AddHoldingView: View {
             HStack {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(.primary) // .primary color adapts automatically to dark mode
+                    .foregroundColor(.primary)
                 if required {
                     Text("*")
                         .foregroundColor(.red)
@@ -241,7 +232,7 @@ struct AddHoldingView: View {
                 content()
             }
             .padding(16)
-            .background(Color(uiColor: .secondarySystemGroupedBackground)) // Use adaptive background color
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
             .cornerRadius(15)
             .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
             
@@ -319,16 +310,14 @@ struct AddHoldingView: View {
     private func formatDecimalInput(_ input: String, maxDigits: Int) -> String {
         let components = input.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
         var result = ""
-        
-        // Handle integer part
+
         let integerPart = components.first ?? ""
         if integerPart.count > maxDigits {
             result = String(integerPart.prefix(maxDigits))
         } else {
             result = String(integerPart)
         }
-        
-        // Handle decimal part
+
         if components.count > 1 {
             let decimalPart = components[1]
             result += "." + String(decimalPart.prefix(2))

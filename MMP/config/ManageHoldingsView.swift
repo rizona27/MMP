@@ -2,9 +2,9 @@ import SwiftUI
 
 // MARK: - 新增：用于表示客户分组的数据结构，便于UI使用
 struct ClientGroupForManagement: Identifiable {
-    let id: String // 客户姓名作为唯一标识符
+    let id: String
     let clientName: String
-    var holdings: [FundHolding] // 该客户名下的所有持仓
+    var holdings: [FundHolding]
 }
 
 struct ManageHoldingsView: View {
@@ -13,47 +13,35 @@ struct ManageHoldingsView: View {
     @Environment(\.dismiss) var dismiss
     
     @Environment(\.colorScheme) var colorScheme
-    
-    // 用于编辑单个持仓
+
     @State private var selectedHolding: FundHolding? = nil
-    
-    // 用于批量修改客户姓名
     @State private var isShowingRenameAlert: Bool = false
     @State private var clientToRename: ClientGroupForManagement? = nil
     @State private var newClientName: String = ""
-    
-    // 新增: 用于批量删除客户持仓
     @State private var isShowingDeleteAlert: Bool = false
     @State private var clientToDelete: ClientGroupForManagement? = nil
-    
-    // 关键修复：用于跟踪哪个客户分组是展开的，改为只存储一个
     @State private var expandedClient: String? = nil
-    
-    // 从 AppStorage 读取快速定位栏的开关状态
+
     @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
     
-    // 计算属性：按客户姓名分组后的数据，不进行搜索过滤
     private var groupedHoldings: [ClientGroupForManagement] {
         let groupedDictionary = Dictionary(grouping: dataManager.holdings) { holding in
             holding.clientName
         }
-        
-        // 将字典转换为 ClientGroupForManagement 数组
+
         var clientGroups: [ClientGroupForManagement] = groupedDictionary.map { (clientName, holdings) in
             return ClientGroupForManagement(id: clientName, clientName: clientName, holdings: holdings)
         }
-        
-        // 按客户名称排序
+
         clientGroups.sort { $0.clientName < $1.clientName }
         
         return clientGroups
     }
 
-    // 计算属性：用于按首字母分组，以支持快速定位条
     var sectionedClientGroups: [Character: [ClientGroupForManagement]] {
         var sections: [Character: [ClientGroupForManagement]] = [:]
         
-        let allGroups = groupedHoldings // 注意这里使用未过滤的 groupedHoldings
+        let allGroups = groupedHoldings
         for group in allGroups {
             let firstChar = group.clientName.first?.uppercased().first ?? "#"
             sections[firstChar, default: []].append(group)
@@ -61,32 +49,26 @@ struct ManageHoldingsView: View {
         return sections
     }
 
-    // 计算属性：用于快速定位条的标题
     var sortedSectionKeys: [Character] {
         sectionedClientGroups.keys.sorted { (char1, char2) -> Bool in
-            // 特殊处理，让 '#' 排在最后
             if char1 == "#" { return false }
             if char2 == "#" { return true }
-            return String(char1).localizedStandardCompare(String(char2)) == .orderedAscending // 确保按拼音排序
+            return String(char1).localizedStandardCompare(String(char2)) == .orderedAscending
         }
     }
     
     // MARK: - 主视图内容
     var body: some View {
-        // 使用 NavigationStack 来管理导航
         NavigationStack {
             GeometryReader { geometry in
-                // 关键修复：将 ScrollViewReader 移到最外层，包裹整个 HStack
                 ScrollViewReader { proxy in
-                    HStack(spacing: 8) { // 增加 HStack 的间距以容纳两个框架
-                        // ✨ 快速定位栏
+                    HStack(spacing: 8) {
                         if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
                             VStack(spacing: 2) {
                                 ScrollView(.vertical, showsIndicators: false) {
                                     VStack(spacing: 2) {
                                         ForEach(sortedSectionKeys, id: \.self) { titleChar in
                                             Button(action: {
-                                                // 修改点: 找到该字母下的第一个客户并滚动到其位置
                                                 guard let firstClientInGroup = sectionedClientGroups[titleChar]?.sorted(by: { $0.clientName < $1.clientName }).first else { return }
                                                 withAnimation {
                                                     proxy.scrollTo(firstClientInGroup.id, anchor: .top)
@@ -116,7 +98,6 @@ struct ManageHoldingsView: View {
                             )
                         }
 
-                        // 客户分组列表视图 (新增 VStack 包装)
                         if groupedHoldings.isEmpty {
                             VStack {
                                 Spacer()
@@ -126,7 +107,7 @@ struct ManageHoldingsView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            VStack { // 新增 VStack
+                            VStack {
                                 List {
                                     ForEach(sortedSectionKeys, id: \.self) { sectionKey in
                                         Section(header: EmptyView()) {
@@ -157,20 +138,17 @@ struct ManageHoldingsView: View {
                                                 } label: {
                                                     headerView(for: clientGroup)
                                                 }
-                                                // 修改点: 将 ID 附加到 DisclosureGroup 上，以确保滚动定位准确
                                                 .id(clientGroup.id)
-                                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)) // 调整为和 ClientView 一致
+                                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                                 .listRowSeparator(.hidden)
                                             }
                                         }
-                                        // 移除 Section 的 ID，避免与 DisclosureGroup 的 ID 冲突
                                     }
                                 }
                                 .listStyle(.plain)
                                 .padding(.leading, isQuickNavBarEnabled ? 0 : 16)
-                                // 移除 .refreshable 功能
                             }
-                            .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0), height: geometry.size.height) // 动态计算宽度
+                            .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0), height: geometry.size.height)
                             .background(Color(.systemGroupedBackground))
                             .cornerRadius(10)
                             .overlay(
@@ -181,7 +159,6 @@ struct ManageHoldingsView: View {
                     }
                 }
             }
-            // 移除导航栏标题和折叠按钮
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -195,7 +172,7 @@ struct ManageHoldingsView: View {
                     }
                 }
             }
-        } // NavigationStack 结束
+        }
         .sheet(item: $selectedHolding) { holdingToEdit in
             EditHoldingView(holding: holdingToEdit) { updatedHolding in
                 dataManager.updateHolding(updatedHolding)
@@ -240,7 +217,6 @@ struct ManageHoldingsView: View {
         }
     }
     
-    // 刷新所有基金信息的方法
     private func refreshAllFundInfo() async {
         let uniqueFundCodes = Set(dataManager.holdings.map { $0.fundCode })
         
@@ -311,14 +287,12 @@ struct ManageHoldingsView: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 if !clientGroup.clientName.isEmpty {
-                    // 如果客户姓名不为空，则只显示姓名
                     Text("**\(clientGroup.clientName)**")
                         .font(.subheadline)
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 } else if let clientID = clientGroup.holdings.first?.clientID, !clientID.isEmpty {
-                    // 如果姓名为空，但客户号不为空，则显示客户号
                     Text("(\(clientID))")
                         .font(.caption.monospaced())
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
@@ -366,41 +340,39 @@ struct ManageHoldingsView: View {
 // MARK: - 专门用于 ManageHoldingsView 的简化版 HoldingRow
 struct HoldingRowForManagement: View {
     let holding: FundHolding
-    let onEdit: () -> Void // 用于触发编辑的闭包
+    let onEdit: () -> Void
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(holding.fundName) (\(holding.fundCode))")
                     .font(.headline)
-                Text("客户: \(holding.clientName) (\(holding.clientID))") // 显示客户姓名和客户号
+                Text("客户: \(holding.clientName) (\(holding.clientID))")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Text("购买金额: \(holding.purchaseAmount, specifier: "%.2f")元")
                     .font(.caption)
                 Text("购买份额: \(holding.purchaseShares, specifier: "%.4f")份")
                     .font(.caption)
-                Text("购买日期: \(holding.purchaseDate, formatter: DateFormatter.shortDate)") // 这里使用 shortDate
+                Text("购买日期: \(holding.purchaseDate, formatter: DateFormatter.shortDate)")
                     .font(.caption)
-                if !holding.remarks.isEmpty { // 检查备注是否为空
+                if !holding.remarks.isEmpty {
                     Text("备注: \(holding.remarks)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             Spacer()
-            // 修正: 将编辑按钮移动到右边
             Button(action: onEdit) {
                 Text("编辑")
                     .font(.caption)
                     .foregroundColor(.blue)
             }
-            .buttonStyle(.borderless) // 确保按钮样式不会覆盖前景颜色
-            .padding(.leading, 10) // 添加一些左侧间距
+            .buttonStyle(.borderless)
+            .padding(.leading, 10)
         }
         .padding(.vertical, 8)
-        .padding(.horizontal, 16) // 新增：添加水平内边距
-        // 添加卡片样式
+        .padding(.horizontal, 16)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
@@ -413,7 +385,7 @@ extension DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .none
-        formatter.locale = Locale(identifier: "zh_CN") // 根据需要调整
+        formatter.locale = Locale(identifier: "zh_CN")
         return formatter
     }()
 }

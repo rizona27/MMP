@@ -7,12 +7,11 @@ struct AboutView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // 程序名称和版本信息
                     VStack(alignment: .leading, spacing: 5) {
                         Text("易基暴富")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                        Text("Version: 1.4.0     By: rizona.cn@gmail.com")
+                        Text("Version: 1.4.3     By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -23,10 +22,9 @@ struct AboutView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("更新日志：")
                             .font(.headline)
-                            .foregroundColor(.secondary) // 灰色字样
+                            .foregroundColor(.secondary)
                             .padding(.bottom, 5)
 
-                        // 核心改动：将日志内容放入一个固定高度的滚动框中
                         ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
                                 BulletPointView(text: "Version 1.4.0\n修改了Logo和名称。\nAPI数据接口冗余，修正跳转功能。")
@@ -37,18 +35,15 @@ struct AboutView: View {
                                     .foregroundColor(.secondary)
                                 BulletPointView(text: "Version 1.0.0\n初代版本。\n基金导入和API调用逻辑构建。")
                                     .foregroundColor(.secondary)
-                                // 如果未来有更多日志，可以继续在此添加
                             }
                             .padding()
                         }
-                        .frame(height: 100) // 核心修改: 调整高度为 100
-                        .background(Color(.systemGray6)) // 添加一个浅灰色背景
-                        .cornerRadius(10) // 添加圆角
+                        .frame(height: 100)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
                     }
 
-                    Divider() // 在更新日志和程序介绍之间再加一个分隔符，保持结构清晰
-
-                    // 程序介绍
+                    Divider()
                     VStack(alignment: .leading, spacing: 10) {
                         Text("功能介绍")
                             .font(.headline)
@@ -85,7 +80,6 @@ struct AboutView: View {
     }
 }
 
-// 一个简单的Bullet Point视图，保持样式一致
 struct BulletPointView: View {
     var text: String
 

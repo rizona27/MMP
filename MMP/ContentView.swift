@@ -7,13 +7,17 @@ struct ContentView: View {
 
     @State private var showSplash = true
     @State private var selectedTab = 0
-    @State private var splashOpacity: Double = 1.0
+    @State private var splashOpacity: Double = 0.0
     
     @State private var startPoint = UnitPoint.topLeading
     @State private var endPoint = UnitPoint.bottomTrailing
 
+    @State private var copyrightGradientStartPoint = UnitPoint.leading
+    @State private var copyrightGradientEndPoint = UnitPoint.trailing
+
     var body: some View {
         ZStack {
+            // MARK: - Main Application TabView
             NavigationView {
                 TabView(selection: $selectedTab) {
                     SummaryView()
@@ -54,48 +58,79 @@ struct ContentView: View {
                 }
             }
             .opacity(showSplash ? 0 : 1)
+            .animation(.easeIn(duration: 1.0), value: showSplash)
 
+            // MARK: - Splash Screen
             if showSplash {
                 VStack(alignment: .leading, spacing: 8) {
+                    // Spacer 负责将标题组推到中间偏上的位置
+                    Spacer()
+                        .frame(height: 150) // 调整这个值来改变 Less 的起始位置
+                    
                     Text("Less")
-                        .font(.system(size: 50, weight: .light, design: .serif))
-                        .foregroundColor(.black)
-                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
+                        .font(.system(size: 50, weight: .light, design: .serif).italic())
+                        .foregroundColor(Color(hex: "8B0000"))
+                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
                     Text("is")
-                        .font(.system(size: 35, weight: .light, design: .serif))
-                        .foregroundColor(.black)
-                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
-                    Text("More")
-                        .font(.system(size: 70, weight: .bold, design: .serif))
-                        .foregroundColor(.black)
-                        .shadow(color: .white.opacity(0.3), radius: 6, x: 0, y: 6)
-                    Text("Finding Abundance Through Subtraction")
-                        .font(.custom("HelveticaNeue-Light", size: 18))
-                        .foregroundColor(.black.opacity(0.8))
-                        .shadow(color: .white.opacity(0.3), radius: 4, x: 0, y: 4)
+                        .font(.system(size: 35, weight: .light, design: .serif).italic())
+                        .foregroundColor(Color(hex: "8B0000"))
+                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
+                    Text("More.")
+                        .font(.system(size: 70, weight: .heavy, design: .serif).italic())
+                        .foregroundColor(Color(hex: "8B0000"))
+                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
+                    Text("Finding Abundance Through Subtraction...")
+                        .font(.system(size: 18, weight: .light).italic())
+                        .foregroundColor(Color(hex: "8B0000").opacity(0.8))
+                        .shadow(color: .gray.opacity(0.6), radius: 6, x: 1, y: 6)
                         .padding(.top, 25)
+
+                    Spacer() // 将内容推到上方，并为版权文字预留空间
+                    
+                    // MARK: - Copyright Text on Splash Screen
+                    Text("Copyright©Rizona. All Rights Reserved")
+                        .font(.system(size: 12, weight: .light).italic())
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, 40) // 确保底部有足够的空隙
+                        .foregroundColor(.clear)
+                        .overlay(
+                            LinearGradient(gradient: Gradient(colors: [Color.red, Color.blue]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
+                                .mask(
+                                    Text("Copyright © Rizona. All Rights Reserved")
+                                        .font(.system(size: 12, weight: .light).italic())
+                                )
+                        )
+                        .onAppear {
+                            withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: true)) {
+                                self.copyrightGradientStartPoint = UnitPoint.trailing
+                                self.copyrightGradientEndPoint = UnitPoint.leading
+                            }
+                        }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.leading, 30)
-                .padding(.top, 250)
                 .background(
                     LinearGradient(gradient: Gradient(colors: [Color(hex: "F5F5DC"), Color(hex: "FFFFFF")]), startPoint: startPoint, endPoint: endPoint)
                 )
                 .edgesIgnoringSafeArea(.all)
                 .opacity(splashOpacity)
                 .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        withAnimation(.easeOut(duration: 1.5)) {
-                            self.splashOpacity = 0.0
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                self.showSplash = false
-                            }
-                        }
-                    }
-
                     withAnimation(.linear(duration: 5.0).repeatForever(autoreverses: true)) {
                         self.startPoint = UnitPoint(x: 1.0, y: 0.0)
                         self.endPoint = UnitPoint(x: 0.0, y: 1.0)
+                    }
+
+                    withAnimation(.easeIn(duration: 1.0)) {
+                        self.splashOpacity = 1.0
+                    }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        withAnimation(.easeOut(duration: 1.5)) {
+                            self.splashOpacity = 0.0
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            self.showSplash = false
+                        }
                     }
                 }
             }
@@ -122,7 +157,7 @@ extension Color {
     }
 }
 
-// --- 模拟环境测试 (预览代码) ---
+// MARK: - Preview Provider
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         let dataManager = DataManager()

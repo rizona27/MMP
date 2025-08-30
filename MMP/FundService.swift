@@ -1,4 +1,3 @@
-// FundService.swift
 import Foundation
 import Combine
 
@@ -12,13 +11,11 @@ enum FundAPI: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
-// 定义一个用于缓存的结构，包含基金数据和缓存时间
 struct CachedFundHolding: Codable {
     let holding: FundHolding
     let timestamp: Date
 }
 
-// 日志类型枚举
 enum LogType: String {
     case info = "信息"
     case success = "成功"
@@ -28,7 +25,6 @@ enum LogType: String {
     case cache = "缓存"
 }
 
-// 日志条目结构
 struct LogEntry: Identifiable {
     let id = UUID()
     let message: String
@@ -42,17 +38,15 @@ class FundService: ObservableObject {
     private var fundCache: [String: CachedFundHolding] = [:]
     private let cacheQueue = DispatchQueue(label: "com.mmp.fundcache")
     private let userDefaultsKey = "fundServiceCache"
-    
     private let cacheExpirationInterval: TimeInterval = 24 * 60 * 60
 
-    // 用户选择的API
     private var selectedFundAPI: FundAPI {
         get {
             if let rawValue = UserDefaults.standard.string(forKey: "selectedFundAPI"),
                let api = FundAPI(rawValue: rawValue) {
                 return api
             }
-            return .eastmoney // 默认值
+            return .eastmoney
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: "selectedFundAPI")
@@ -81,11 +75,9 @@ class FundService: ObservableObject {
         }
     }
 
-    // 主要的基金信息获取方法 - 添加 useOnlyEastmoney 参数
     func fetchFundInfo(code: String, useOnlyEastmoney: Bool = false) async -> FundHolding {
         addLog("开始查询基金代码: \(code)，使用API: \(selectedFundAPI.rawValue)" + (useOnlyEastmoney ? " (仅使用天天基金)" : ""), type: .network)
-        
-        // 1. 检查主缓存
+
         if let cachedData = getFromCache(code: code) {
             let isSameNavDay = calendar.isDate(cachedData.holding.navDate, inSameDayAs: Date())
             let isCacheFresh = !isCacheExpired(cachedData)
@@ -98,12 +90,10 @@ class FundService: ObservableObject {
             }
         }
         
-        // 2. 主缓存不存在或已过期，从 API 获取
         addLog("基金代码 \(code): 主缓存不可用，开始尝试从API获取。", type: .network)
         
         var fetchedHolding: FundHolding?
-        
-        // 根据用户选择的API获取数据
+
         switch selectedFundAPI {
         case .eastmoney:
             fetchedHolding = await fetchFromEastmoney(code: code)
@@ -125,13 +115,11 @@ class FundService: ObservableObject {
         
         if let dataFromAPI = fetchedHolding, dataFromAPI.isValid {
             finalHolding = dataFromAPI
-            
-            // 如果使用天天基金API，尝试获取收益率数据
+
             if selectedFundAPI == .eastmoney {
                 addLog("基金代码 \(code): 尝试获取收益率数据", type: .network)
                 let returnsData = await fetchReturnsFromEastmoney(code: code)
-                
-                // 更新收益率数据
+
                 finalHolding.navReturn1m = returnsData.navReturn1m
                 finalHolding.navReturn3m = returnsData.navReturn3m
                 finalHolding.navReturn6m = returnsData.navReturn6m
@@ -143,7 +131,6 @@ class FundService: ObservableObject {
             saveToCache(holding: finalHolding)
             addLog("基金代码 \(code): 成功获取有效数据并更新主缓存。", type: .success)
         } else if !useOnlyEastmoney {
-            // 如果首选API失败，并且允许使用备用API，则尝试其他API作为备用
             addLog("基金代码 \(code): 首选API失败，尝试备用API。", type: .warning)
             
             for api in FundAPI.allCases where api != selectedFundAPI {
@@ -163,13 +150,10 @@ class FundService: ObservableObject {
                 
                 if let validBackup = backupHolding, validBackup.isValid {
                     finalHolding = validBackup
-                    
-                    // 如果使用天天基金API，尝试获取收益率数据
+
                     if api == .eastmoney {
                         addLog("基金代码 \(code): 尝试获取收益率数据", type: .network)
                         let returnsData = await fetchReturnsFromEastmoney(code: code)
-                        
-                        // 更新收益率数据
                         finalHolding.navReturn1m = returnsData.navReturn1m
                         finalHolding.navReturn3m = returnsData.navReturn3m
                         finalHolding.navReturn6m = returnsData.navReturn6m
@@ -190,7 +174,7 @@ class FundService: ObservableObject {
                 finalHolding.isValid = !isCacheExpired(cachedData)
             }
         } else {
-            // 如果只使用天天基金API且获取失败，直接返回无效数据
+
             addLog("基金代码 \(code): 天天基金API失败且不允许使用备用API。", type: .error)
         }
         
@@ -198,8 +182,7 @@ class FundService: ObservableObject {
     }
 
     // MARK: - 各个API的具体实现
-    
-    // 天天基金API
+
     private func fetchFromEastmoney(code: String) async -> FundHolding {
         addLog("基金代码 \(code): 尝试从天天基金API获取数据", type: .network)
         
@@ -220,7 +203,6 @@ class FundService: ObservableObject {
             }
             
             if let string = String(data: data, encoding: .utf8), string.starts(with: "jsonpgz") {
-                // 解析JSONP格式数据
                 let jsonString = string
                     .replacingOccurrences(of: "jsonpgz(", with: "")
                     .replacingOccurrences(of: ");", with: "")
@@ -241,7 +223,6 @@ class FundService: ObservableObject {
                     }
                     
                     if let gsz = json["gsz"] as? String, let value = Double(gsz) {
-                        // 使用估值作为当前净值
                         holding.currentNav = value
                     }
                     
@@ -264,8 +245,7 @@ class FundService: ObservableObject {
             return FundHolding.invalid(fundCode: code)
         }
     }
-    
-    // 从天天基金获取收益率数据
+
     private func fetchReturnsFromEastmoney(code: String) async -> (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?) {
         addLog("基金代码 \(code): 尝试从天天基金获取收益率数据", type: .network)
         
@@ -294,8 +274,7 @@ class FundService: ObservableObject {
             var navReturn3m: Double? = nil
             var navReturn6m: Double? = nil
             var navReturn1y: Double? = nil
-            
-            // 修正正则表达式以匹配正确的变量名
+
             let regex = try NSRegularExpression(pattern: "syl_(\\d+[yn])\\s*=\\s*\"([^\"]*)\"", options: [])
             let range = NSRange(jsString.startIndex..<jsString.endIndex, in: jsString)
             
@@ -314,7 +293,6 @@ class FundService: ObservableObject {
                 let valueString = String(jsString[valueSwiftRange])
                 
                 if let value = Double(valueString) {
-                    // 将捕获的键值对赋给对应的变量
                     switch key {
                     case "1y":
                         navReturn1m = value
@@ -338,8 +316,7 @@ class FundService: ObservableObject {
             return (nil, nil, nil, nil)
         }
     }
-    
-    // 腾讯财经API
+
     private func fetchFromTencent(code: String) async -> FundHolding {
         addLog("基金代码 \(code): 尝试从腾讯财经API获取数据", type: .network)
         
@@ -368,14 +345,12 @@ class FundService: ObservableObject {
                let ssgsz = lastData[1] as? String {
                 
                 var holding = FundHolding.invalid(fundCode: code)
-                
-                // 获取基金名称和净值日期
+
                 let detailUrlString = "https://gu.qq.com/jj\(code)"
                 if let detailUrl = URL(string: detailUrlString) {
                     do {
                         let (htmlData, _) = try await URLSession.shared.data(from: detailUrl)
                         if let htmlString = String(data: htmlData, encoding: .utf8) {
-                            // 使用正则表达式提取基金名称
                             let nameRegex = try NSRegularExpression(pattern: "<title>([^<]+)</title>", options: [])
                             let matches = nameRegex.matches(in: htmlString, options: [], range: NSRange(location: 0, length: htmlString.count))
                             
@@ -412,8 +387,7 @@ class FundService: ObservableObject {
             return FundHolding.invalid(fundCode: code)
         }
     }
-    
-    // 蚂蚁基金API
+
     private func fetchFromFund123(code: String) async -> FundHolding {
         addLog("基金代码 \(code): 尝试从蚂蚁基金API获取数据", type: .network)
         
@@ -434,17 +408,14 @@ class FundService: ObservableObject {
             }
             
             if let htmlString = String(data: data, encoding: .utf8) {
-                // 使用正则表达式提取基金信息
                 var holding = FundHolding.invalid(fundCode: code)
-                
-                // 提取基金名称
+
                 let nameRegex = try NSRegularExpression(pattern: "fundNameAbbr[^']+'([^']+)'", options: [])
                 if let nameMatch = nameRegex.firstMatch(in: htmlString, options: [], range: NSRange(location: 0, length: htmlString.count)) {
                     let range = Range(nameMatch.range(at: 1), in: htmlString)!
                     holding.fundName = String(htmlString[range])
                 }
-                
-                // 提取净值
+
                 let navRegex = try NSRegularExpression(pattern: "netValue[^']+'([^']+)'", options: [])
                 if let navMatch = navRegex.firstMatch(in: htmlString, options: [], range: NSRange(location: 0, length: htmlString.count)) {
                     let range = Range(navMatch.range(at: 1), in: htmlString)!
@@ -452,8 +423,7 @@ class FundService: ObservableObject {
                         holding.currentNav = navValue
                     }
                 }
-                
-                // 提取净值日期
+
                 let dateRegex = try NSRegularExpression(pattern: "netValueDate[^']+'([^']+)'", options: [])
                 if let dateMatch = dateRegex.firstMatch(in: htmlString, options: [], range: NSRange(location: 0, length: htmlString.count)) {
                     let range = Range(dateMatch.range(at: 1), in: htmlString)!
@@ -482,8 +452,7 @@ class FundService: ObservableObject {
             return FundHolding.invalid(fundCode: code)
         }
     }
-    
-    // 同花顺API
+
     private func fetchFromFund10jqka(code: String) async -> FundHolding {
         addLog("基金代码 \(code): 尝试从同花顺API获取数据", type: .network)
         
@@ -583,7 +552,6 @@ class FundService: ObservableObject {
         }
     }
 
-    // 日志记录方法
     internal func addLog(_ message: String, type: LogType) {
         DispatchQueue.main.async {
             let logEntry = LogEntry(message: message, type: type, timestamp: Date())
@@ -593,8 +561,7 @@ class FundService: ObservableObject {
             }
         }
     }
-    
-    // 新增：从pingzhongdata接口获取基金详情（包括名称和收益率）
+
     func fetchFundDetailsFromEastmoney(code: String) async -> (fundName: String, returns: (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?)) {
         addLog("基金代码 \(code): 尝试从天天基金获取详情数据", type: .network)
         
@@ -624,8 +591,7 @@ class FundService: ObservableObject {
             var navReturn3m: Double? = nil
             var navReturn6m: Double? = nil
             var navReturn1y: Double? = nil
-            
-            // 使用正则表达式提取基金名称
+
             let namePattern = "fS_name\\s*=\\s*\"([^\"]*)\""
             if let nameRange = jsString.range(of: namePattern, options: .regularExpression) {
                 let nameString = String(jsString[nameRange])
@@ -633,8 +599,7 @@ class FundService: ObservableObject {
                     fundName = String(nameString[quoteRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
                 }
             }
-            
-            // 原有的收益率提取逻辑
+
             let regex = try NSRegularExpression(pattern: "syl_(\\d+[yn])\\s*=\\s*\"([^\"]*)\"", options: [])
             let range = NSRange(jsString.startIndex..<jsString.endIndex, in: jsString)
             
@@ -678,7 +643,6 @@ class FundService: ObservableObject {
     }
 }
 
-// FundHolding扩展，用于创建无效的基金持仓
 extension FundHolding {
     static func invalid(fundCode: String) -> FundHolding {
         return FundHolding(

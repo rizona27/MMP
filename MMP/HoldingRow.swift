@@ -1,45 +1,37 @@
 import SwiftUI
-import UIKit // 确保导入了 UIKit
+import UIKit
 
 struct HoldingRow: View {
     @EnvironmentObject var dataManager: DataManager
     let holding: FundHolding
-    let hideClientInfo: Bool // 新增参数，控制是否隐藏客户信息
+    let hideClientInfo: Bool
 
-    // 状态变量用于控制复制成功的提示
     @State private var showCopyConfirm = false
     @State private var copiedText = ""
 
-    // 新增一个 YY-MM-DD 格式的日期格式器
     private static let dateFormatterYY_MM_DD: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yy-MM-dd"
         return formatter
     }()
-    
-    // 新增一个 MM-DD 格式的日期格式器 (用于净值日期)
+
     private static let dateFormatterMM_DD: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd"
         return formatter
     }()
 
-    // 新增计算属性：持有天数
     var holdingDays: Int {
-        // 使用净值日期或当前日期来计算持有天数
-        // 修正：holding.navDate 为非可选，直接使用
         let endDate = holding.navDate
         let calendar = Calendar.current
-        // 使用.startOfDay来忽略时间，只计算完整天数
         let components = calendar.dateComponents([.day], from: calendar.startOfDay(for: holding.purchaseDate), to: calendar.startOfDay(for: endDate))
-        return (components.day ?? 0) + 1 // 加1以包含购买当天
+        return (components.day ?? 0) + 1
     }
 
     var body: some View {
         let profit = dataManager.calculateProfit(for: holding)
 
         VStack(alignment: .leading, spacing: 4) {
-            // 第一行：基金名 (主标题) 和基金代码，右侧是净值和净值日期
             HStack(alignment: .firstTextBaseline) {
                 Text(holding.fundName)
                     .font(.headline)
@@ -72,7 +64,6 @@ struct HoldingRow: View {
                     .minimumScaleFactor(0.7)
             }
 
-            // 第二行（条件性显示）：客户名，客户号
             if !hideClientInfo {
                 HStack {
                     Text("客户: \(holding.clientName)")
@@ -86,7 +77,6 @@ struct HoldingRow: View {
                 }
             }
 
-            // 第三行：购买金额，份额
             HStack {
                 Text("购买金额: \(purchaseAmountFormatted)")
                     .font(.caption)
@@ -95,7 +85,6 @@ struct HoldingRow: View {
                 Spacer()
             }
 
-            // 第四行：收益信息 - 靠左对齐
             HStack {
                 Text("收益: ")
                     .font(.subheadline)
@@ -113,13 +102,12 @@ struct HoldingRow: View {
                 
                 Spacer()
             }
-            
-            // 新增的第五行：购买日期和持有天数
+
             HStack {
                 Text("购买日期: ")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(Self.dateFormatterYY_MM_DD.string(from: holding.purchaseDate)) // 使用新的格式器
+                Text(Self.dateFormatterYY_MM_DD.string(from: holding.purchaseDate))
                     .font(.caption)
                 
                 Spacer()
@@ -130,9 +118,8 @@ struct HoldingRow: View {
                 Text("\(holdingDays)天")
                     .font(.caption)
             }
-            .padding(.top, 4) // 添加顶部内边距，与上方HStack拉开距离
+            .padding(.top, 4)
 
-            // 新的最后一行：报告按钮、复制客户号按钮和备注
             HStack {
                 Button("报告") {
                     UIPasteboard.general.string = reportContent
@@ -190,7 +177,6 @@ struct HoldingRow: View {
     
     private var formattedNavValueAndDate: String {
         let navValue = String(format: "%.4f", holding.currentNav)
-        // 修正：holding.navDate 为非可选，直接使用
         let navDate = Self.dateFormatterMM_DD.string(from: holding.navDate)
         return "\(navValue)(\(navDate))"
     }
@@ -213,8 +199,7 @@ struct HoldingRow: View {
         let formattedCurrentNav = String(format: "%.4f", holding.currentNav)
         let formattedAbsoluteProfit = String(format: "%.2f", profit.absolute)
         let formattedAnnualizedProfit = String(format: "%.2f", profit.annualized)
-        
-        // 修正：holding.navDate 为非可选，直接使用
+
         let navDateString = Self.dateFormatterMM_DD.string(from: holding.navDate)
 
         return """
