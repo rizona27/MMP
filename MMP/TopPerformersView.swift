@@ -50,6 +50,9 @@ struct TopPerformersView: View {
     @State private var isLoading = false
     @State private var precomputedHoldings: [(holding: FundHolding, profit: ProfitResult, daysHeld: Int)] = []
     
+    // MARK: - 隐私模式变量
+    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
+    
     private func applyFilters() {
         appliedFundCodeFilter = fundCodeFilterInput
         appliedMinAmount = minAmountInput
@@ -121,7 +124,7 @@ struct TopPerformersView: View {
         }
         return results.sorted { $0.profit.annualized > $1.profit.annualized }
     }
-
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
@@ -245,7 +248,7 @@ struct TopPerformersView: View {
                                                     .frame(width: rateWidth, alignment: .center)
                                                     .lineLimit(1).minimumScaleFactor(0.8)
                                                 Divider().background(Color.secondary)
-                                                Text(item.holding.clientName)
+                                                Text(isPrivacyModeEnabled ? processClientName(item.holding.clientName) : item.holding.clientName)
                                                     .font(.system(size: 11)).lineLimit(2).minimumScaleFactor(0.8).truncationMode(.tail)
                                                     .frame(width: clientWidth, alignment: .leading)
                                             }

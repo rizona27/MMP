@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A30EBB072E6329B6007CC9FD /* PrivacyHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30EBB062E6329B6007CC9FD /* PrivacyHelpers.swift */; };
 		A32F7E902E3A04F10016A1D6 /* AddHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */; };
 		A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */; };
 		A32F7E942E3A051C0016A1D6 /* EditHoldingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A30EBB062E6329B6007CC9FD /* PrivacyHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyHelpers.swift; sourceTree = "<group>"; };
 		A32F7E8F2E3A04F10016A1D6 /* AddHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHoldingView.swift; sourceTree = "<group>"; };
 		A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageHoldingsView.swift; sourceTree = "<group>"; };
 		A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHoldingView.swift; sourceTree = "<group>"; };
@@ -89,9 +91,9 @@
 				A3948F9C2E54B0F600C5768F /* MMP.entitlements */,
 				A3425FDB2E3854DD00E5A762 /* MMPApp.swift */,
 				A3425FDD2E3854DD00E5A762 /* ContentView.swift */,
+				A3FC14902E3E6BFE00545617 /* SummaryView.swift */,
 				A3B1124A2E3904EE00FD9CDA /* ClientView.swift */,
 				A39EE4652E56E7E3001A0F4C /* TopPerformersView.swift */,
-				A3FC14902E3E6BFE00545617 /* SummaryView.swift */,
 				A3B1124C2E39060900FD9CDA /* ConfigView.swift */,
 				A3FC14962E3EF2AA00545617 /* config */,
 				A3B112462E39048D00FD9CDA /* DataManager.swift */,
@@ -121,6 +123,7 @@
 				A3B112502E390A6800FD9CDA /* APILogView.swift */,
 				A32F7E932E3A051C0016A1D6 /* EditHoldingView.swift */,
 				A32F7E912E3A05060016A1D6 /* ManageHoldingsView.swift */,
+				A30EBB062E6329B6007CC9FD /* PrivacyHelpers.swift */,
 			);
 			path = config;
 			sourceTree = "<group>";
@@ -199,6 +202,7 @@
 				A3FC14912E3E6BFE00545617 /* SummaryView.swift in Sources */,
 				A32F7E922E3A05060016A1D6 /* ManageHoldingsView.swift in Sources */,
 				A3B1124B2E3904EF00FD9CDA /* ClientView.swift in Sources */,
+				A30EBB072E6329B6007CC9FD /* PrivacyHelpers.swift in Sources */,
 				A3948F9E2E54C43800C5768F /* ToastView.swift in Sources */,
 				A3B112512E390A6800FD9CDA /* APILogView.swift in Sources */,
 				A32F7E962E3A09B10016A1D6 /* HoldingRow.swift in Sources */,
@@ -367,7 +371,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rizona.MMP;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -404,7 +408,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.3;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rizona.MMP;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

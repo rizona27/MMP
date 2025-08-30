@@ -11,6 +11,10 @@ struct CustomCardView<Content: View>: View {
     var action: (() -> Void)? = nil
     var toggleBinding: Binding<Bool>? = nil
     var toggleTint: Color = .accentColor
+    var hasAnimatedBackground: Bool = false // 新增属性
+
+    // 关键改动：使用一个 CGFloat 值来控制动画的进度
+    @State private var animationProgress: CGFloat = 0.0
 
     @ViewBuilder let content: (Color) -> Content
 
@@ -53,7 +57,35 @@ struct CustomCardView<Content: View>: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
-        .background(backgroundColor)
+        .background(
+            ZStack {
+                if hasAnimatedBackground {
+                    // 莫兰迪撞色，并额外增加颜色以确保循环的平滑性
+                    let gradientColors = [
+                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),  // 浅灰蓝 (开始)
+                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),   // 浅灰粉
+                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),   // 米杏色
+                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)    // 浅灰蓝 (结束，与开始色相同，用于无缝循环)
+                    ]
+
+                    LinearGradient(
+                        gradient: Gradient(colors: gradientColors),
+                        // 关键改动：根据 animationProgress 动态计算 startPoint 和 endPoint
+                        // 确保渐变从左上角到右下角流动，并在循环时无缝衔接
+                        startPoint: UnitPoint(x: -1 + animationProgress * 2, y: -1 + animationProgress * 2),
+                        endPoint: UnitPoint(x: 0 + animationProgress * 2, y: 0 + animationProgress * 2)
+                    )
+                    // 关键改动：将动画应用到 LinearGradient 上，并使用 .linear(duration:...) 和 .repeatForever(autoreverses: false)
+                    .animation(Animation.linear(duration: 8).repeatForever(autoreverses: false), value: animationProgress)
+                    .onAppear {
+                        // 启动动画，让 animationProgress 从 0 变化到 1，再循环
+                        animationProgress = 1.0
+                    }
+                } else {
+                    backgroundColor
+                }
+            }
+        )
         .cornerRadius(15)
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
 
@@ -67,6 +99,7 @@ struct CustomCardView<Content: View>: View {
         }
     }
 }
+
 
 // MARK: - 新增基金API选择视图
 struct FundAPIView: View {
@@ -174,8 +207,8 @@ struct ManageHoldingsMenuView: View {
                     .environmentObject(fundService)
             }
             .confirmationDialog("确认清空所有持仓数据？",
-                                 isPresented: $showingClearConfirmation,
-                                 titleVisibility: .visible) {
+                                isPresented: $showingClearConfirmation,
+                                titleVisibility: .visible) {
                 Button("清空", role: .destructive) {
                     dataManager.holdings.removeAll()
                     dataManager.saveData()
@@ -213,7 +246,7 @@ struct ThemeModeView: View {
 
 // MARK: - 快速定位栏选择视图
 struct QuickNavBarView: View {
-    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
+    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = false
     
     var body: some View {
         CustomCardView(
@@ -231,6 +264,28 @@ struct QuickNavBarView: View {
         }
     }
 }
+
+// MARK: - 隐私模式切换视图
+struct PrivacyModeView: View {
+    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
+    
+    var body: some View {
+        CustomCardView(
+            title: "隐私模式",
+            description: nil,
+            imageName: "lock.fill",
+            backgroundColor: Color.mint.opacity(0.1),
+            contentForegroundColor: .mint
+        ) { fgColor in
+            Picker("隐私模式", selection: $isPrivacyModeEnabled) {
+                Text("开启").tag(true)
+                Text("关闭").tag(false)
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+}
+
 
 // MARK: - CSV导出文档
 struct CSVExportDocument: FileDocument {
@@ -309,7 +364,6 @@ struct ConfigView: View {
                                 contentForegroundColor: .orange,
                                 action: {
                                     exportHoldingsToCSV()
-                                    isExporting = true
                                 }
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
@@ -344,35 +398,41 @@ struct ConfigView: View {
                         .padding(.horizontal, 8)
 
                         HStack(spacing: 12) {
-                            QuickNavBarView()
+                            PrivacyModeView()
                                 .frame(maxWidth: .infinity)
-                            
                             ThemeModeView()
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, 8)
 
-                        HStack(spacing: 12) {
-                            FundAPIView()
+                        HStack(spacing: 12) { // 调整为HStack
+                            QuickNavBarView()
                                 .frame(maxWidth: .infinity)
+                            
+                            // About Card has been moved here and updated
+                            CustomCardView(
+                                title: "关于",
+                                description: "程序版本信息和说明",
+                                imageName: "info.circle.fill",
+                                contentForegroundColor: .white,
+                                action: {
+                                    showingAboutSheet = true
+                                },
+                                hasAnimatedBackground: true // 开启莫兰迪渐变动画
+                            ) { _ in EmptyView() }
+                            .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, 8)
 
+                        FundAPIView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 8)
+                        
                         Divider()
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
-
-                        CustomCardView(
-                            title: "关于",
-                            description: "程序版本信息和说明",
-                            imageName: "info.circle.fill",
-                            backgroundColor: Color.gray.opacity(0.1),
-                            contentForegroundColor: .secondary,
-                            action: {
-                                showingAboutSheet = true
-                            }
-                        ) { _ in EmptyView() }
-                        .padding(.horizontal, 8)
+                        
+                        // The original location of the About card is now empty.
                     }
                     .padding(.vertical, 8)
                 }
@@ -429,6 +489,7 @@ struct ConfigView: View {
         }
         
         document = CSVExportDocument(message: csvString)
+        isExporting = true // 触发文件导出
     }
     
     // MARK: - 处理文件导出结果
@@ -511,35 +572,35 @@ struct ConfigView: View {
                 guard values.count >= headers.count else { continue }
                 
                 guard let fundCodeIndex = columnIndices["基金代码"],
-                      let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                            let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedFundCode = fundCode.padding(toLength: 6, withPad: "0", startingAt: 0)
                 
                 guard let amountIndex = columnIndices["购买金额"],
-                      let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      let amount = Double(amountStr) else { continue }
+                            let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                            let amount = Double(amountStr) else { continue }
                 let cleanedAmount = (amount * 100).rounded() / 100
                 
                 guard let sharesIndex = columnIndices["购买份额"],
-                      let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      let shares = Double(sharesStr) else { continue }
+                            let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                            let shares = Double(sharesStr) else { continue }
                 let cleanedShares = (shares * 100).rounded() / 100
                 
                 var purchaseDate = Date()
                 if let dateIndex = columnIndices["购买日期"],
-                   let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     if let date = dateFormatter.date(from: dateStr) {
                         purchaseDate = date
                     }
                 }
                 
                 guard let clientIDIndex = columnIndices["客户号"],
-                      let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                            let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedClientID = clientID.padding(toLength: 12, withPad: "0", startingAt: 0)
 
                 var clientName: String
                 if let clientNameIndex = columnIndices["客户姓名"],
-                   let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !nameFromCSV.isEmpty {
+                    let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    !nameFromCSV.isEmpty {
                     clientName = nameFromCSV
                 } else {
                     clientName = cleanedClientID
@@ -581,12 +642,12 @@ extension FundHolding: Hashable, Equatable {
     static func == (lhs: FundHolding, rhs: FundHolding) -> Bool {
         let calendar = Calendar.current
         return lhs.fundCode == rhs.fundCode &&
-                lhs.purchaseAmount == rhs.purchaseAmount &&
-                lhs.purchaseShares == rhs.purchaseShares &&
-                calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
-                lhs.clientID == rhs.clientID &&
-                lhs.clientName == rhs.clientName &&
-                lhs.remarks == rhs.remarks
+               lhs.purchaseAmount == rhs.purchaseAmount &&
+               lhs.purchaseShares == rhs.purchaseShares &&
+               calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
+               lhs.clientID == rhs.clientID &&
+               lhs.clientName == rhs.clientName &&
+               lhs.remarks == rhs.remarks
     }
 
     func hash(into hasher: inout Hasher) {

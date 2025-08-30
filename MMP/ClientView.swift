@@ -1,6 +1,10 @@
 import SwiftUI
 import Foundation
 
+// MARK: - PrivacyHelpers 引用
+// 假定 PrivacyHelpers.swift 文件已在项目中，且其函数可访问。
+// processClientName 函数的实现应在 PrivacyHelpers.swift 中。
+
 extension String {
     func morandiColor() -> Color {
         var hash = 0
@@ -74,6 +78,7 @@ struct ClientView: View {
     @State private var expandedClients: Set<String> = []
     
     @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
+    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
     @State private var loadedGroupedClientCount: Int = 10
     
@@ -176,6 +181,17 @@ struct ClientView: View {
     var areAnyCardsExpanded: Bool {
         !expandedClients.isEmpty
     }
+    
+    // MARK: - 辅助函数：生成 HoldingRow 视图
+    private func holdingRowView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
+        var displayHolding = holding
+        if isPrivacyModeEnabled {
+            displayHolding.clientName = processClientName(holding.clientName)
+        }
+        return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo)
+            .environmentObject(dataManager)
+            .environmentObject(fundService)
+    }
 
     private func searchResultsListView() -> some View {
         List {
@@ -193,9 +209,7 @@ struct ClientView: View {
                     .padding()
             } else {
                 ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
-                    HoldingRow(holding: holding, hideClientInfo: false)
-                        .environmentObject(dataManager)
-                        .environmentObject(fundService)
+                    holdingRowView(for: holding, hideClientInfo: false)
                         .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
                         .listRowSeparator(.hidden)
                         .onAppear {
@@ -226,9 +240,7 @@ struct ClientView: View {
                 )
             ) {
                 ForEach(pinnedHoldings) { holding in
-                    HoldingRow(holding: holding, hideClientInfo: false)
-                        .environmentObject(dataManager)
-                        .environmentObject(fundService)
+                    holdingRowView(for: holding, hideClientInfo: false)
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
@@ -281,9 +293,7 @@ struct ClientView: View {
             )
         ) {
             ForEach(clientGroup.holdings.prefix(loadedGroupedClientCount)) { holding in
-                HoldingRow(holding: holding, hideClientInfo: true)
-                    .environmentObject(dataManager)
-                    .environmentObject(fundService)
+                holdingRowView(for: holding, hideClientInfo: true)
                     .onAppear {
                         if holding.id == clientGroup.holdings.prefix(loadedGroupedClientCount).last?.id && loadedGroupedClientCount < clientGroup.holdings.count {
                             loadedGroupedClientCount += 10
@@ -294,7 +304,8 @@ struct ClientView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
-                    Text("**\(clientGroup.clientName)**")
+                    let clientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
+                    Text("**\(clientName)**")
                         .font(.subheadline)
                         .foregroundColor(colorScheme == .dark ? .white : .black)
                         .lineLimit(1)
@@ -465,7 +476,7 @@ struct ClientView: View {
                         .disabled(isRefreshing)
                     }
                 }
-            } 
+            }
         }
         .onChange(of: searchText) { _, newValue in
             loadedSearchResultCount = 10

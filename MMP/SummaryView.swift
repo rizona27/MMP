@@ -42,6 +42,7 @@ enum SortOrder: String, CaseIterable, Identifiable {
 struct SummaryView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
+    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
 
     @State private var isRefreshing = false
     private var unrecognizedFunds: [FundHolding] {
@@ -317,7 +318,7 @@ struct SummaryView: View {
                                                         .foregroundColor(.secondary)
                                                         .fixedSize(horizontal: true, vertical: false)
                     
-                                                    combinedClientAndReturnText(funds: allGroupedFunds[fundCode] ?? [], getHoldingReturn: getHoldingReturn, sortOrder: sortOrder)
+                                                    combinedClientAndReturnText(funds: allGroupedFunds[fundCode] ?? [], getHoldingReturn: getHoldingReturn, sortOrder: sortOrder, isPrivacyModeEnabled: isPrivacyModeEnabled)
                                                         .font(.subheadline)
                                                         .lineLimit(nil)
                                                         .multilineTextAlignment(.leading)
@@ -678,7 +679,7 @@ struct FundHoldingCardLabel: View {
     }
 }
 
-private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn: (FundHolding) -> Double?, sortOrder: SortOrder) -> Text {
+private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn: (FundHolding) -> Double?, sortOrder: SortOrder, isPrivacyModeEnabled: Bool) -> Text {
     let sortedFunds: [FundHolding]
     if sortOrder == .ascending {
         sortedFunds = funds.sorted {
@@ -701,7 +702,8 @@ private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn:
     }
 
     for (index, holding) in sortedFunds.enumerated() {
-        var clientText = Text(holding.clientName)
+        let clientName = isPrivacyModeEnabled ? processClientName(holding.clientName) : holding.clientName
+        var clientText = Text(clientName)
         if let holdingReturn = getHoldingReturn(holding) {
             clientText = clientText + Text("(\(holdingReturn.formattedPercentage))")
                 .foregroundColor(colorForValue(holdingReturn))
@@ -736,7 +738,7 @@ private func getColumnValue(for fund: FundHolding, keyPath: String?) -> String {
     switch keyPath {
     case "syl_1y": return fund.navReturn1m?.formattedPercentage ?? "/"
     case "syl_3y": return fund.navReturn3m?.formattedPercentage ?? "/"
-    case "syl_6y": return fund.navReturn6m?.formattedPercentage ?? "/"
+    case "syl_6m": return fund.navReturn6m?.formattedPercentage ?? "/"
     case "syl_1n": return fund.navReturn1y?.formattedPercentage ?? "/"
     default: return ""
     }
