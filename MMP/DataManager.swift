@@ -39,24 +39,11 @@ class DataManager: ObservableObject {
         } else {
             print("DataManager: 没有找到 UserDefaults 中的持仓数据。")
         }
-        
-        var decodedFavorites: [FavoriteItem] = []
-        if let savedFavorites = UserDefaults.standard.data(forKey: favoritesKey) {
-            if let decodedData = try? JSONDecoder().decode([FavoriteItem].self, from: savedFavorites) {
-                decodedFavorites = decodedData
-                print("DataManager: 收藏夹数据加载成功。总收藏数: \(decodedFavorites.count)")
-            } else {
-                print("DataManager: 收藏夹数据解码失败。")
-            }
-        } else {
-            print("DataManager: 没有找到 UserDefaults 中的收藏夹数据。")
-        }
 
         // 新增：加载隐私模式状态
         self.isPrivacyMode = UserDefaults.standard.bool(forKey: privacyModeKey)
         
         self.holdings = decodedHoldings
-        self.favorites = decodedFavorites
     }
 
     func saveData() {
