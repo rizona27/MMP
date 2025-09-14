@@ -1,3 +1,4 @@
+// SummaryView.swift
 import SwiftUI
 import Foundation
 
@@ -64,6 +65,7 @@ struct SummaryView: View {
     @State private var failedFunds: [String] = []
     
     @State private var allExpanded = false
+    @State private var refreshID = UUID() // 用于强制刷新视图
 
     private let calendar = Calendar.current
     private let maxConcurrentRequests = 3
@@ -334,7 +336,6 @@ struct SummaryView: View {
                                                 fund: funds,
                                                 selectedSortKey: selectedSortKey,
                                                 getColumnValue: { fund, keyPath in
-
                                                     getColumnValue(for: fund, keyPath: keyPath)
                                                 }
                                             )
@@ -346,6 +347,7 @@ struct SummaryView: View {
                                 }
                             }
                             .listStyle(PlainListStyle())
+                            .id(refreshID) // 添加唯一标识符，确保数据更新时视图重新创建
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -400,6 +402,10 @@ struct SummaryView: View {
                 ToastView(message: "刷新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
                     .padding(.bottom, 80)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
+            // 当数据更新时，强制刷新视图
+            refreshID = UUID()
         }
     }
     
@@ -464,6 +470,9 @@ struct SummaryView: View {
             withAnimation {
                 showingToast = true
             }
+            
+            // 刷新完成后发送通知
+            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
         }
     }
     
@@ -521,6 +530,9 @@ struct SummaryView: View {
             withAnimation {
                 showingToast = true
             }
+            
+            // 刷新完成后发送通知
+            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
         }
     }
 
@@ -618,6 +630,11 @@ struct FundHoldingCardLabel: View {
     
     @Environment(\.colorScheme) var colorScheme
     
+    // 添加唯一标识符，确保数据更新时视图重新创建
+    private var identifier: String {
+        "\(fund.fundCode)-\(fund.fundName)-\(fund.navReturn1m ?? 0)-\(fund.navReturn3m ?? 0)-\(fund.navReturn6m ?? 0)-\(fund.navReturn1y ?? 0)"
+    }
+    
     private var baseColor: Color {
         fund.fundCode.morandiColor()
     }
@@ -676,6 +693,7 @@ struct FundHoldingCardLabel: View {
                 .padding(.horizontal, 16)
             }
         }
+        .id(identifier) // 添加唯一标识符，确保数据更新时视图重新创建
     }
 }
 

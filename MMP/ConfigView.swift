@@ -262,6 +262,10 @@ struct QuickNavBarView: View {
             }
             .pickerStyle(.segmented)
         }
+        .onChange(of: isQuickNavBarEnabled) { newValue in
+            // 强制更新所有视图以反映新的定位栏状态
+            NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
+        }
     }
 }
 
@@ -336,6 +340,8 @@ struct ConfigView: View {
     }
 
     func onAppear() {
+        // 确保定位栏状态正确同步
+        NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
     }
     
     func onDisappear() {
@@ -644,6 +650,9 @@ struct ConfigView: View {
             dataManager.saveData()
             fundService.addLog("导入完成: 成功导入 \(importedCount) 条记录", type: .success)
             self.showToast(message: "导入成功：\(importedCount) 条记录。")
+            
+            // 导入完成后发送通知，让其他视图刷新数据
+            NotificationCenter.default.post(name: NSNotification.Name("HoldingsDataUpdated"), object: nil)
             
         } catch {
             fundService.addLog("导入失败: \(error.localizedDescription)", type: .error)

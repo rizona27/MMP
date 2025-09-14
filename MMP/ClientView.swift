@@ -1,3 +1,4 @@
+// ClientView.swift
 import SwiftUI
 import Foundation
 
@@ -86,7 +87,8 @@ struct ClientView: View {
     @State private var loadedSearchResultCount: Int = 10
     
     @State private var scrollViewProxy: ScrollViewProxy?
-    
+    @State private var refreshID = UUID() // 用于强制刷新视图
+
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
             return s1.localizedStandardCompare(s2) == .orderedAscending
@@ -428,6 +430,7 @@ struct ClientView: View {
                                             }
                                         }
                                         .listStyle(.plain)
+                                        .id(refreshID) // 添加唯一标识符，确保数据更新时视图重新创建
                                         .onAppear {
                                             scrollViewProxy = proxy
                                         }
@@ -485,6 +488,14 @@ struct ClientView: View {
                 expandedClients.removeAll()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QuickNavBarStateChanged"))) { _ in
+            // 当定位栏状态改变时，强制刷新视图
+            refreshID = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
+            // 当数据更新时，强制刷新视图
+            refreshID = UUID()
+        }
     }
     
     private func refreshAllFundInfo() async {
@@ -513,6 +524,8 @@ struct ClientView: View {
                     dataManager.updateHolding(updatedHolding)
                 }
                 dataManager.saveData()
+                // 刷新完成后发送通知
+                NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
             }
             fundService.addLog("ClientView: 所有基金信息刷新完成。", type: .info)
         }
