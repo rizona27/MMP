@@ -78,7 +78,7 @@ struct ClientView: View {
 
     @State private var expandedClients: Set<String> = []
     
-    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = true
+    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = false
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
     @State private var loadedGroupedClientCount: Int = 10
