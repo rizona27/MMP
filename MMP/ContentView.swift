@@ -94,14 +94,14 @@ struct ContentView: View {
                         .padding(.bottom, 40) // 确保底部有足够的空隙
                         .foregroundColor(.clear)
                         .overlay(
-                            LinearGradient(gradient: Gradient(colors: [Color.red, Color.blue]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
+                            LinearGradient(gradient: Gradient(colors: [Color.blue, Color.red]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
                                 .mask(
                                     Text("Copyright © Rizona. All Rights Reserved")
                                         .font(.system(size: 12, weight: .light).italic())
                                 )
                         )
                         .onAppear {
-                            withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: true)) {
+                            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                                 self.copyrightGradientStartPoint = UnitPoint.trailing
                                 self.copyrightGradientEndPoint = UnitPoint.leading
                             }
