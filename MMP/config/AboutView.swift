@@ -64,7 +64,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.5.6      By: rizona.cn@gmail.com")
+                        Text("Version: 1.5.7      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -110,7 +110,7 @@ struct AboutView: View {
                             .foregroundColor(.accentColor)
                             .padding(.bottom, 5)
 
-                        Text("跟踪管理多客户基金持仓，提供最新基金净值查询、收益统计等功能。")
+                        Text("跟踪管理多客户基金持仓，提供最新净值查询、收益统计等功能。\n目前数据接口优选同花顺，更新时间略早于其他三端接口。")
                             .font(.body)
                             .foregroundColor(.secondary)
 
