@@ -262,7 +262,7 @@ struct QuickNavBarView: View {
             }
             .pickerStyle(.segmented)
         }
-        .onChange(of: isQuickNavBarEnabled) { newValue in
+        .onChange(of: isQuickNavBarEnabled) { _, newValue in
             // 强制更新所有视图以反映新的定位栏状态
             NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
         }
