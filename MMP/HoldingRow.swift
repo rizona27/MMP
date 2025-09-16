@@ -27,6 +27,13 @@ struct HoldingRow: View {
         let components = calendar.dateComponents([.day], from: calendar.startOfDay(for: holding.purchaseDate), to: calendar.startOfDay(for: endDate))
         return (components.day ?? 0) + 1
     }
+    
+    // 计算绝对收益率百分比
+    var absoluteReturnPercentage: Double {
+        guard holding.purchaseAmount > 0 else { return 0.0 }
+        let profit = dataManager.calculateProfit(for: holding)
+        return (profit.absolute / holding.purchaseAmount) * 100
+    }
 
     var body: some View {
         let profit = dataManager.calculateProfit(for: holding)
@@ -76,6 +83,8 @@ struct HoldingRow: View {
                     Spacer()
                 }
             }
+            
+            Spacer().frame(height: 8)
 
             HStack {
                 Text("购买金额: \(purchaseAmountFormatted)")
@@ -84,7 +93,8 @@ struct HoldingRow: View {
                     .font(.caption)
                 Spacer()
             }
-
+            
+            // 收益和收益率分开两行显示
             HStack {
                 Text("收益: ")
                     .font(.subheadline)
@@ -93,13 +103,36 @@ struct HoldingRow: View {
                     .font(.subheadline)
                     .foregroundColor(profit.absolute > 0 ? .red : (profit.absolute < 0 ? .green : .primary))
                 
+                Spacer()
+            }
+            
+            HStack {
                 Text("收益率: ")
                     .font(.subheadline)
                     .foregroundColor(.primary)
-                Text("\(profit.annualized > 0 ? "+" : "")\(profit.annualized, specifier: "%.2f")%")
-                    .font(.subheadline)
-                    .foregroundColor(profit.annualized > 0 ? .red : (profit.annualized < 0 ? .green : .primary))
                 
+                Group {
+                    Text("\(absoluteReturnPercentage, specifier: "%.2f")%")
+                        .font(.subheadline)
+                        .foregroundColor(absoluteReturnPercentage > 0 ? .red : (absoluteReturnPercentage < 0 ? .green : .primary))
+                    + Text("[绝对]")
+                        .font(.caption)
+                        .foregroundColor(absoluteReturnPercentage > 0 ? .red : (absoluteReturnPercentage < 0 ? .green : .primary))
+                    
+                    Text(" | ")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("\(profit.annualized, specifier: "%.2f")%")
+                        .font(.subheadline)
+                        .foregroundColor(profit.annualized > 0 ? .red : (profit.annualized < 0 ? .green : .primary))
+                    + Text("[年化]")
+                        .font(.caption)
+                        .foregroundColor(profit.annualized > 0 ? .red : (profit.annualized < 0 ? .green : .primary))
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
                 Spacer()
             }
 
@@ -199,6 +232,7 @@ struct HoldingRow: View {
         let formattedCurrentNav = String(format: "%.4f", holding.currentNav)
         let formattedAbsoluteProfit = String(format: "%.2f", profit.absolute)
         let formattedAnnualizedProfit = String(format: "%.2f", profit.annualized)
+        let formattedAbsoluteReturnPercentage = String(format: "%.2f", self.absoluteReturnPercentage)
 
         let navDateString = Self.dateFormatterMM_DD.string(from: holding.navDate)
 
@@ -209,7 +243,8 @@ struct HoldingRow: View {
         ├ 购买金额:\(purchaseAmountFormatted)
         ├ 最新净值:\(formattedCurrentNav) | \(navDateString)
         ├ 收益:\(profit.absolute > 0 ? "+" : "")\(formattedAbsoluteProfit)
-        └ 收益率:\(formattedAnnualizedProfit)%
+        ├ 收益率:\(formattedAnnualizedProfit)%(年化)
+        └ 收益率:\(formattedAbsoluteReturnPercentage)%(绝对)
         """
     }
 }

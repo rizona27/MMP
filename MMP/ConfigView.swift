@@ -207,8 +207,8 @@ struct ManageHoldingsMenuView: View {
                     .environmentObject(fundService)
             }
             .confirmationDialog("确认清空所有持仓数据？",
-                                isPresented: $showingClearConfirmation,
-                                titleVisibility: .visible) {
+                                 isPresented: $showingClearConfirmation,
+                                 titleVisibility: .visible) {
                 Button("清空", role: .destructive) {
                     dataManager.holdings.removeAll()
                     dataManager.saveData()
@@ -592,35 +592,46 @@ struct ConfigView: View {
                 guard values.count >= headers.count else { continue }
                 
                 guard let fundCodeIndex = columnIndices["基金代码"],
-                                let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
-                let cleanedFundCode = fundCode.padding(toLength: 6, withPad: "0", startingAt: 0)
+                                     let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                let cleanedFundCode = String(format: "%06d", Int(fundCode) ?? 0)
                 
                 guard let amountIndex = columnIndices["购买金额"],
-                                let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                                let amount = Double(amountStr) else { continue }
+                                     let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                     let amount = Double(amountStr) else { continue }
                 let cleanedAmount = (amount * 100).rounded() / 100
                 
                 guard let sharesIndex = columnIndices["购买份额"],
-                                let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                                let shares = Double(sharesStr) else { continue }
+                                     let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                     let shares = Double(sharesStr) else { continue }
                 let cleanedShares = (shares * 100).rounded() / 100
                 
                 var purchaseDate = Date()
                 if let dateIndex = columnIndices["购买日期"],
-                    let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                   let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
                     if let date = dateFormatter.date(from: dateStr) {
                         purchaseDate = date
                     }
                 }
                 
                 guard let clientIDIndex = columnIndices["客户号"],
-                                let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
-                let cleanedClientID = clientID.padding(toLength: 12, withPad: "0", startingAt: 0)
+                                     let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+                
+                // 修复客户号补零逻辑
+                let desiredLength = 12
+                let currentLength = clientID.count
+                var cleanedClientID = clientID
+
+                if currentLength < desiredLength {
+                    let numberOfZerosToAdd = desiredLength - currentLength
+                    let leadingZeros = String(repeating: "0", count: numberOfZerosToAdd)
+                    cleanedClientID = leadingZeros + clientID
+                }
+                // 修复完成
 
                 var clientName: String
                 if let clientNameIndex = columnIndices["客户姓名"],
-                    let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                    !nameFromCSV.isEmpty {
+                   let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !nameFromCSV.isEmpty {
                     clientName = nameFromCSV
                 } else {
                     clientName = cleanedClientID
@@ -665,12 +676,12 @@ extension FundHolding: Hashable, Equatable {
     static func == (lhs: FundHolding, rhs: FundHolding) -> Bool {
         let calendar = Calendar.current
         return lhs.fundCode == rhs.fundCode &&
-                lhs.purchaseAmount == rhs.purchaseAmount &&
-                lhs.purchaseShares == rhs.purchaseShares &&
-                calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
-                lhs.clientID == rhs.clientID &&
-                lhs.clientName == rhs.clientName &&
-                lhs.remarks == rhs.remarks
+            lhs.purchaseAmount == rhs.purchaseAmount &&
+            lhs.purchaseShares == rhs.purchaseShares &&
+            calendar.isDate(lhs.purchaseDate, inSameDayAs: rhs.purchaseDate) &&
+            lhs.clientID == rhs.clientID &&
+            lhs.clientName == rhs.clientName &&
+            lhs.remarks == rhs.remarks
     }
 
     func hash(into hasher: inout Hasher) {
