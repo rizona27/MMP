@@ -1,15 +1,11 @@
 import SwiftUI
 
-// MARK: - Update Log Data Model
-// This struct defines the data for each log entry.
 struct UpdateLog: Identifiable {
     let id = UUID()
     let version: String
     let description: String
 }
 
-// MARK: - ViewModel for Update Log
-// This ViewModel manages the logs and the automatic scrolling logic.
 class UpdateLogViewModel: ObservableObject {
     @Published var currentIndex: Int = 0
     private var timer: Timer?
@@ -21,21 +17,21 @@ class UpdateLogViewModel: ObservableObject {
         UpdateLog(version: "Version 1.4.0", description: "修改了Logo和名称。\nAPI数据接口冗余，修正跳转功能。"),
         UpdateLog(version: "Version 1.5.0", description: "增加隐私模式。"),
         UpdateLog(version: "Version 1.5.6", description: "API净值读取错误修正，数据导入刷新模式更新。"),
-        UpdateLog(version: "Version 1.5.8", description: "收益率字段及导入逻辑完善。")
+        UpdateLog(version: "Version 1.5.8", description: "收益率字段及导入逻辑完善。"),
+        UpdateLog(version: "Version 1.5.9", description: "客户页面刷新模式更新。"),
+        UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
     init() {
-        // Stop any existing timer to prevent multiple timers running
+
         stopScrolling()
         startScrolling()
     }
 
     func startScrolling() {
-        // Changed to a 2-second interval to make the scroll transition more noticeable.
-        // The animation itself will take 1 second.
         timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            withAnimation(.easeInOut(duration: 1.0)) { // Apply animation to the change in currentIndex
+            withAnimation(.easeInOut(duration: 1.0)) {
                 self.currentIndex = (self.currentIndex + 1) % self.logs.count
             }
         }
@@ -51,7 +47,6 @@ class UpdateLogViewModel: ObservableObject {
     }
 }
 
-// MARK: - AboutView
 struct AboutView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = UpdateLogViewModel()
@@ -65,14 +60,13 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.5.8      By: rizona.cn@gmail.com")
+                        Text("Version: 1.5.9      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
 
                     Divider()
 
-                    // MARK: - 更新日志
                     VStack(alignment: .leading, spacing: 10) {
                         Text("更新日志：")
                             .font(.headline)
@@ -86,7 +80,7 @@ struct AboutView: View {
                                         let log = viewModel.logs[index]
                                         BulletPointView(text: "\(log.version)\n\(log.description)")
                                             .foregroundColor(.secondary)
-                                            .id(index) // Ensure each item has a unique ID
+                                            .id(index)
                                     }
                                 }
                                 .padding()
@@ -104,7 +98,6 @@ struct AboutView: View {
 
                     Divider()
 
-                    // MARK: - 功能介绍
                     VStack(alignment: .leading, spacing: 10) {
                         Text("功能介绍")
                             .font(.headline)
@@ -151,7 +144,6 @@ struct AboutView: View {
     }
 }
 
-// MARK: - BulletPointView
 struct BulletPointView: View {
     var text: String
 

@@ -1,8 +1,6 @@
-// SummaryView.swift
 import SwiftUI
 import Foundation
 
-// MARK: - 通用辅助视图和枚举
 enum SortKey: String, CaseIterable, Identifiable {
     case none = "无排序"
     case navReturn1m = "近1月"
@@ -39,7 +37,6 @@ enum SortOrder: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
-// MARK: - SummaryView
 struct SummaryView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
@@ -65,7 +62,7 @@ struct SummaryView: View {
     @State private var failedFunds: [String] = []
     
     @State private var allExpanded = false
-    @State private var refreshID = UUID() // 用于强制刷新视图
+    @State private var refreshID = UUID()
 
     private let calendar = Calendar.current
     private let maxConcurrentRequests = 3
@@ -347,7 +344,7 @@ struct SummaryView: View {
                                 }
                             }
                             .listStyle(PlainListStyle())
-                            .id(refreshID) // 添加唯一标识符，确保数据更新时视图重新创建
+                            .id(refreshID) 
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -404,13 +401,10 @@ struct SummaryView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
-            // 当数据更新时，强制刷新视图
             refreshID = UUID()
         }
     }
     
-    // MARK: - 操作方法
-
     private func refreshAllFunds() async {
         await MainActor.run {
             isRefreshing = true
@@ -471,7 +465,6 @@ struct SummaryView: View {
                 showingToast = true
             }
             
-            // 刷新完成后发送通知
             NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
         }
     }
@@ -531,7 +524,6 @@ struct SummaryView: View {
                 showingToast = true
             }
             
-            // 刷新完成后发送通知
             NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
         }
     }
@@ -630,7 +622,6 @@ struct FundHoldingCardLabel: View {
     
     @Environment(\.colorScheme) var colorScheme
     
-    // 添加唯一标识符，确保数据更新时视图重新创建
     private var identifier: String {
         "\(fund.fundCode)-\(fund.fundName)-\(fund.navReturn1m ?? 0)-\(fund.navReturn3m ?? 0)-\(fund.navReturn6m ?? 0)-\(fund.navReturn1y ?? 0)"
     }
@@ -693,7 +684,7 @@ struct FundHoldingCardLabel: View {
                 .padding(.horizontal, 16)
             }
         }
-        .id(identifier) // 添加唯一标识符，确保数据更新时视图重新创建
+        .id(identifier)
     }
 }
 

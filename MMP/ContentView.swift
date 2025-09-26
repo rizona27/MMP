@@ -17,7 +17,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // MARK: - Main Application TabView
             NavigationView {
                 TabView(selection: $selectedTab) {
                     SummaryView()
@@ -60,12 +59,11 @@ struct ContentView: View {
             .opacity(showSplash ? 0 : 1)
             .animation(.easeIn(duration: 1.0), value: showSplash)
 
-            // MARK: - Splash Screen
             if showSplash {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Spacer 负责将标题组推到中间偏上的位置
+
                     Spacer()
-                        .frame(height: 150) // 调整这个值来改变 Less 的起始位置
+                        .frame(height: 150)
                     
                     Text("Less")
                         .font(.system(size: 50, weight: .light, design: .serif).italic())
@@ -85,13 +83,12 @@ struct ContentView: View {
                         .shadow(color: .gray.opacity(0.6), radius: 6, x: 1, y: 6)
                         .padding(.top, 25)
 
-                    Spacer() // 将内容推到上方，并为版权文字预留空间
-                    
-                    // MARK: - Copyright Text on Splash Screen
+                    Spacer()
+
                     Text("Copyright©Rizona. All Rights Reserved")
                         .font(.system(size: 12, weight: .light).italic())
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.bottom, 40) // 确保底部有足够的空隙
+                        .padding(.bottom, 40) 
                         .foregroundColor(.clear)
                         .overlay(
                             LinearGradient(gradient: Gradient(colors: [Color.blue, Color.red]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
@@ -157,7 +154,6 @@ extension Color {
     }
 }
 
-// MARK: - Preview Provider
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         let dataManager = DataManager()

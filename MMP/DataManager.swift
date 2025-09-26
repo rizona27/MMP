@@ -15,11 +15,11 @@ struct FavoriteItem: Identifiable, Codable {
 class DataManager: ObservableObject {
     @Published var holdings: [FundHolding] = []
     @Published var favorites: [FavoriteItem] = []
-    @Published var isPrivacyMode: Bool = false // 新增：隐私模式状态
+    @Published var isPrivacyMode: Bool = false
     
     private let holdingsKey = "fundHoldings"
     private let favoritesKey = "Favorites"
-    private let privacyModeKey = "isPrivacyMode" // 新增：隐私模式的 UserDefaults key
+    private let privacyModeKey = "isPrivacyMode"
     
     init() {
         loadData()
@@ -40,7 +40,6 @@ class DataManager: ObservableObject {
             print("DataManager: 没有找到 UserDefaults 中的持仓数据。")
         }
 
-        // 新增：加载隐私模式状态
         self.isPrivacyMode = UserDefaults.standard.bool(forKey: privacyModeKey)
         
         self.holdings = decodedHoldings
@@ -56,8 +55,6 @@ class DataManager: ObservableObject {
             let favoritesEncoder = JSONEncoder()
             let favoritesData = try favoritesEncoder.encode(self.favorites)
             UserDefaults.standard.set(favoritesData, forKey: favoritesKey)
-            
-            // 新增：保存隐私模式状态
             UserDefaults.standard.set(self.isPrivacyMode, forKey: privacyModeKey)
             
             print("DataManager: 所有数据保存成功。")
@@ -133,15 +130,13 @@ class DataManager: ObservableObject {
         
         return ProfitResult(absolute: absoluteProfit, annualized: annualizedReturn * 100)
     }
-    
-    // 新增：切换隐私模式的函数
+
     func togglePrivacyMode() {
         self.isPrivacyMode.toggle()
-        self.saveData() // 状态改变后立即保存
+        self.saveData()
         print("DataManager: 隐私模式切换为 \(self.isPrivacyMode)。")
     }
-    
-    // 新增：根据隐私模式返回处理过的用户名
+
     func obscuredName(for name: String) -> String {
         guard isPrivacyMode else {
             return name

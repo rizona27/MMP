@@ -1,7 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - 新增通用的卡片视图
 struct CustomCardView<Content: View>: View {
     var title: String?
     var description: String?
@@ -11,9 +10,8 @@ struct CustomCardView<Content: View>: View {
     var action: (() -> Void)? = nil
     var toggleBinding: Binding<Bool>? = nil
     var toggleTint: Color = .accentColor
-    var hasAnimatedBackground: Bool = false // 新增属性
+    var hasAnimatedBackground: Bool = false
 
-    // 关键改动：使用一个 CGFloat 值来控制动画的进度
     @State private var animationProgress: CGFloat = 0.0
 
     @ViewBuilder let content: (Color) -> Content
@@ -60,25 +58,20 @@ struct CustomCardView<Content: View>: View {
         .background(
             ZStack {
                 if hasAnimatedBackground {
-                    // 莫兰迪撞色，并额外增加颜色以确保循环的平滑性
                     let gradientColors = [
-                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),  // 浅灰蓝 (开始)
-                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),  // 浅灰粉
-                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),  // 米杏色
-                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)    // 浅灰蓝 (结束，与开始色相同，用于无缝循环)
+                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),
+                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),
+                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),
+                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)
                     ]
 
                     LinearGradient(
                         gradient: Gradient(colors: gradientColors),
-                        // 关键改动：根据 animationProgress 动态计算 startPoint 和 endPoint
-                        // 确保渐变从左上角到右下角流动，并在循环时无缝衔接
                         startPoint: UnitPoint(x: -1 + animationProgress * 2, y: -1 + animationProgress * 2),
                         endPoint: UnitPoint(x: 0 + animationProgress * 2, y: 0 + animationProgress * 2)
                     )
-                    // 关键改动：将动画应用到 LinearGradient 上，并使用 .linear(duration:...) 和 .repeatForever(autoreverses: false)
                     .animation(Animation.linear(duration: 8).repeatForever(autoreverses: false), value: animationProgress)
                     .onAppear {
-                        // 启动动画，让 animationProgress 从 0 变化到 1，再循环
                         animationProgress = 1.0
                     }
                 } else {
@@ -100,8 +93,6 @@ struct CustomCardView<Content: View>: View {
     }
 }
 
-
-// MARK: - 新增基金API选择视图
 struct FundAPIView: View {
     @AppStorage("selectedFundAPI") private var selectedFundAPI: FundAPI = .eastmoney
     
@@ -123,7 +114,6 @@ struct FundAPIView: View {
     }
 }
 
-// MARK: - 新增管理持仓的子菜单视图
 struct ManageHoldingsMenuView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
@@ -222,7 +212,6 @@ struct ManageHoldingsMenuView: View {
     }
 }
 
-// MARK: - 主题模式选择视图
 struct ThemeModeView: View {
     @AppStorage("themeMode") private var themeMode: ThemeMode = .system
     
@@ -244,7 +233,6 @@ struct ThemeModeView: View {
     }
 }
 
-// MARK: - 快速定位栏选择视图
 struct QuickNavBarView: View {
     @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = false
     
@@ -263,13 +251,11 @@ struct QuickNavBarView: View {
             .pickerStyle(.segmented)
         }
         .onChange(of: isQuickNavBarEnabled) { _, newValue in
-            // 强制更新所有视图以反映新的定位栏状态
             NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
         }
     }
 }
 
-// MARK: - 隐私模式切换视图
 struct PrivacyModeView: View {
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
@@ -290,8 +276,6 @@ struct PrivacyModeView: View {
     }
 }
 
-
-// MARK: - CSV导出文档
 struct CSVExportDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.commaSeparatedText] }
     var message: String
@@ -309,7 +293,6 @@ struct CSVExportDocument: FileDocument {
     }
 }
 
-// MARK: - 数组安全访问扩展
 extension Array {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
@@ -327,11 +310,8 @@ struct ConfigView: View {
     @State private var isImporting = false
     @State private var isExporting = false
     @State private var document: CSVExportDocument?
-    
     @State private var showToast = false
     @State private var toastMessage = ""
-    
-    // 新增：用于控制渐变动画的进度
     @State private var gradientAnimationProgress: CGFloat = 0.0
 
     private func showToast(message: String) {
@@ -340,7 +320,6 @@ struct ConfigView: View {
     }
 
     func onAppear() {
-        // 确保定位栏状态正确同步
         NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
     }
     
@@ -414,11 +393,9 @@ struct ConfigView: View {
                         }
                         .padding(.horizontal, 8)
 
-                        HStack(spacing: 12) { // 调整为HStack
+                        HStack(spacing: 12) {
                             QuickNavBarView()
                                 .frame(maxWidth: .infinity)
-                            
-                            // About Card has been moved here and updated
                             CustomCardView(
                                 title: "关于",
                                 description: "程序版本信息和说明",
@@ -427,7 +404,7 @@ struct ConfigView: View {
                                 action: {
                                     showingAboutSheet = true
                                 },
-                                hasAnimatedBackground: true // 开启莫兰迪渐变动画
+                                hasAnimatedBackground: true
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
                         }
@@ -440,19 +417,15 @@ struct ConfigView: View {
                         Divider()
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
-                            
-                        // 新增的代码块：包含纯色文本（莫兰迪天蓝色/浅蓝色）
                         VStack {
                             Text("Happiness around the corner.")
                                 .font(.system(size: 16))
                                 .italic()
                                 .bold(false)
-                                .foregroundColor(Color(red: 0.7, green: 0.85, blue: 0.9)) // 莫兰迪天蓝色
+                                .foregroundColor(Color(red: 0.7, green: 0.85, blue: 0.9))
                         }
-                        .frame(maxWidth: .infinity) // 确保VStack水平居中
-                        .padding(.vertical, 30) // 增加垂直方向的padding，使其往下移动大约2行
-                        
-                        // The original location of the About card is now empty.
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 30)
                     }
                     .padding(.vertical, 8)
                 }
@@ -492,8 +465,7 @@ struct ConfigView: View {
             }
         }
     }
-    
-    // MARK: - 导出持仓数据为CSV
+
     private func exportHoldingsToCSV() {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -509,10 +481,9 @@ struct ConfigView: View {
         }
         
         document = CSVExportDocument(message: csvString)
-        isExporting = true // 触发文件导出
+        isExporting = true
     }
-    
-    // MARK: - 处理文件导出结果
+
     private func handleFileExport(result: Result<URL, Error>) {
         switch result {
         case .success(let url):
@@ -523,8 +494,7 @@ struct ConfigView: View {
             self.showToast(message: "导出失败: \(error.localizedDescription)")
         }
     }
-    
-    // MARK: - 处理文件导入
+
     private func handleFileImport(result: Result<[URL], Error>) {
         do {
             let urls = try result.get()
@@ -615,8 +585,6 @@ struct ConfigView: View {
                 
                 guard let clientIDIndex = columnIndices["客户号"],
                                      let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
-                
-                // 修复客户号补零逻辑
                 let desiredLength = 12
                 let currentLength = clientID.count
                 var cleanedClientID = clientID
@@ -626,8 +594,6 @@ struct ConfigView: View {
                     let leadingZeros = String(repeating: "0", count: numberOfZerosToAdd)
                     cleanedClientID = leadingZeros + clientID
                 }
-                // 修复完成
-
                 var clientName: String
                 if let clientNameIndex = columnIndices["客户姓名"],
                    let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -662,7 +628,6 @@ struct ConfigView: View {
             fundService.addLog("导入完成: 成功导入 \(importedCount) 条记录", type: .success)
             self.showToast(message: "导入成功：\(importedCount) 条记录。")
             
-            // 导入完成后发送通知，让其他视图刷新数据
             NotificationCenter.default.post(name: NSNotification.Name("HoldingsDataUpdated"), object: nil)
             
         } catch {

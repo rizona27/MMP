@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - 新增：用于表示客户分组的数据结构，便于UI使用
 struct ClientGroupForManagement: Identifiable {
     let id: String
     let clientName: String
@@ -56,8 +55,7 @@ struct ManageHoldingsView: View {
             return String(char1).localizedStandardCompare(String(char2)) == .orderedAscending
         }
     }
-    
-    // MARK: - 主视图内容
+
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
@@ -279,8 +277,7 @@ struct ManageHoldingsView: View {
         dataManager.saveData()
         fundService.addLog("ManageHoldingsView: 从客户 \(clientGroup.clientName) 下删除了 \(holdingsToDeleteIDs.count) 个持仓。", type: .info)
     }
-    
-    // MARK: - 自定义 Section Header 视图，采用 ClientView 的样式
+
     private func headerView(for clientGroup: ClientGroupForManagement) -> some View {
         let baseColor = clientGroup.clientName.morandiColor()
         
@@ -337,7 +334,6 @@ struct ManageHoldingsView: View {
     }
 }
 
-// MARK: - 专门用于 ManageHoldingsView 的简化版 HoldingRow
 struct HoldingRowForManagement: View {
     let holding: FundHolding
     let onEdit: () -> Void
@@ -379,7 +375,6 @@ struct HoldingRowForManagement: View {
     }
 }
 
-// MARK: - DateFormatter 扩展
 extension DateFormatter {
     static let shortDate: DateFormatter = {
         let formatter = DateFormatter()

@@ -27,8 +27,7 @@ struct HoldingRow: View {
         let components = calendar.dateComponents([.day], from: calendar.startOfDay(for: holding.purchaseDate), to: calendar.startOfDay(for: endDate))
         return (components.day ?? 0) + 1
     }
-    
-    // 计算绝对收益率百分比
+
     var absoluteReturnPercentage: Double {
         guard holding.purchaseAmount > 0 else { return 0.0 }
         let profit = dataManager.calculateProfit(for: holding)
@@ -93,8 +92,7 @@ struct HoldingRow: View {
                     .font(.caption)
                 Spacer()
             }
-            
-            // 收益和收益率分开两行显示
+
             HStack {
                 Text("收益: ")
                     .font(.subheadline)

@@ -1,7 +1,6 @@
 import SwiftUI
 import Foundation
 
-// MARK: - 通用辅助视图和函数
 func daysBetween(start: Date, end: Date) -> Int {
     let calendar = Calendar.current
     let startDate = calendar.startOfDay(for: start)
@@ -22,8 +21,6 @@ extension View {
     }
 }
 #endif
-
-// MARK: - 主视图
 
 struct TopPerformersView: View {
     @EnvironmentObject var dataManager: DataManager
@@ -50,7 +47,6 @@ struct TopPerformersView: View {
     @State private var isLoading = false
     @State private var precomputedHoldings: [(holding: FundHolding, profit: ProfitResult, daysHeld: Int)] = []
     
-    // MARK: - 隐私模式变量
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
     private func applyFilters() {
@@ -312,7 +308,6 @@ struct TopPerformersView: View {
         }
     }
     
-    // MARK: - 筛选器视图
     struct FilterFieldView: View {
         var title: String
         var placeholder: String

@@ -1,10 +1,5 @@
-// ClientView.swift
 import SwiftUI
 import Foundation
-
-// MARK: - PrivacyHelpers 引用
-// 假定 PrivacyHelpers.swift 文件已在项目中，且其函数可访问。
-// processClientName 函数的实现应在 PrivacyHelpers.swift 中。
 
 extension String {
     func morandiColor() -> Color {
@@ -68,7 +63,6 @@ struct ClientGroup: Identifiable {
     var pinnedTimestamp: Date?
 }
 
-// MARK: - ClientView
 struct ClientView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
@@ -87,7 +81,12 @@ struct ClientView: View {
     @State private var loadedSearchResultCount: Int = 10
     
     @State private var scrollViewProxy: ScrollViewProxy?
-    @State private var refreshID = UUID() // 用于强制刷新视图
+    @State private var refreshID = UUID()
+
+    @State private var refreshProgress: (current: Int, total: Int) = (0, 0)
+    @State private var currentRefreshingClientName: String = ""
+    @State private var currentRefreshingClientID: String = ""
+    @State private var showRefreshCompleteToast = false
 
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
@@ -183,8 +182,7 @@ struct ClientView: View {
     var areAnyCardsExpanded: Bool {
         !expandedClients.isEmpty
     }
-    
-    // MARK: - 辅助函数：生成 HoldingRow 视图
+
     private func holdingRowView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
         var displayHolding = holding
         if isPrivacyModeEnabled {
@@ -356,112 +354,141 @@ struct ClientView: View {
             }
         }
     }
-    
-    // MARK: - Main Body
+
     var body: some View {
         NavigationView {
-            GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    if !searchText.isEmpty {
-                        searchResultsListView()
-                    } else {
-                        HStack(spacing: 8) {
-                            if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
-                                VStack(spacing: 2) {
-                                    ScrollView(.vertical, showsIndicators: false) {
-                                        VStack(spacing: 2) {
-                                            ForEach(sortedSectionKeys, id: \.self) { titleChar in
-                                                Button(action: {
-                                                    withAnimation {
-                                                        if titleChar == "★" {
-                                                            scrollViewProxy?.scrollTo("Pinned", anchor: .top)
-                                                        } else if let firstClient = sectionedClientGroups[titleChar]?.first {
-                                                            scrollViewProxy?.scrollTo(firstClient.id, anchor: .top)
+            ZStack {
+                GeometryReader { geometry in
+                    VStack(spacing: 0) {
+                        if !searchText.isEmpty {
+                            searchResultsListView()
+                        } else {
+                            HStack(spacing: 8) {
+                                if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
+                                    VStack(spacing: 2) {
+                                        ScrollView(.vertical, showsIndicators: false) {
+                                            VStack(spacing: 2) {
+                                                ForEach(sortedSectionKeys, id: \.self) { titleChar in
+                                                    Button(action: {
+                                                        withAnimation {
+                                                            if titleChar == "★" {
+                                                                scrollViewProxy?.scrollTo("Pinned", anchor: .top)
+                                                            } else if let firstClient = sectionedClientGroups[titleChar]?.first {
+                                                                scrollViewProxy?.scrollTo(firstClient.id, anchor: .top)
+                                                            }
+                                                        }
+                                                    }) {
+                                                        Text(String(titleChar))
+                                                            .font(.caption)
+                                                            .fontWeight(.bold)
+                                                            .frame(width: 24, height: 24)
+                                                            .background(Color.gray.opacity(0.2))
+                                                            .cornerRadius(8)
+                                                            .foregroundColor(.primary)
+                                                    }
+                                                    .padding(.vertical, 2)
+                                                }
+                                            }
+                                            .padding(.vertical, 10)
+                                        }
+                                        .frame(maxHeight: .infinity)
+                                    }
+                                    .frame(width: 44, height: geometry.size.height)
+                                    .background(Color(.systemGroupedBackground))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                                    )
+                                }
+                                
+                                if groupedHoldingsByClientName.isEmpty && pinnedHoldings.isEmpty {
+                                    VStack {
+                                        Spacer()
+                                        Text("当前没有持仓数据。")
+                                            .foregroundColor(.gray)
+                                        Spacer()
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                } else {
+                                    VStack {
+                                        ScrollViewReader { proxy in
+                                            List {
+                                                if !pinnedHoldings.isEmpty {
+                                                    pinnedHoldingsSection()
+                                                }
+                                                
+                                                ForEach(sortedSectionKeys.filter { $0 != "★" }, id: \.self) { sectionKey in
+                                                    Section(header: EmptyView().id(sectionKey)) {
+                                                        let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
+                                                        ForEach(clientsForSection) { clientGroup in
+                                                            clientGroupSection(clientGroup: clientGroup, sectionKey: sectionKey)
                                                         }
                                                     }
-                                                }) {
-                                                    Text(String(titleChar))
-                                                        .font(.caption)
-                                                        .fontWeight(.bold)
-                                                        .frame(width: 24, height: 24)
-                                                        .background(Color.gray.opacity(0.2))
-                                                        .cornerRadius(8)
-                                                        .foregroundColor(.primary)
-                                                }
-                                                .padding(.vertical, 2)
-                                            }
-                                        }
-                                        .padding(.vertical, 10)
-                                    }
-                                    .frame(maxHeight: .infinity)
-                                }
-                                .frame(width: 44, height: geometry.size.height)
-                                .background(Color(.systemGroupedBackground))
-                                .cornerRadius(10)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                                )
-                            }
-                            
-                            if groupedHoldingsByClientName.isEmpty && pinnedHoldings.isEmpty {
-                                VStack {
-                                    Spacer()
-                                    Text("当前没有持仓数据。")
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            } else {
-                                VStack {
-                                    ScrollViewReader { proxy in
-                                        List {
-                                            if !pinnedHoldings.isEmpty {
-                                                pinnedHoldingsSection()
-                                            }
-                                            
-                                            ForEach(sortedSectionKeys.filter { $0 != "★" }, id: \.self) { sectionKey in
-                                                Section(header: EmptyView().id(sectionKey)) {
-                                                    let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
-                                                    ForEach(clientsForSection) { clientGroup in
-                                                        clientGroupSection(clientGroup: clientGroup, sectionKey: sectionKey)
-                                                    }
                                                 }
                                             }
-                                        }
-                                        .listStyle(.plain)
-                                        .id(refreshID) // 添加唯一标识符，确保数据更新时视图重新创建
-                                        .onAppear {
-                                            scrollViewProxy = proxy
+                                            .listStyle(.plain)
+                                            .id(refreshID)
+                                            .onAppear {
+                                                scrollViewProxy = proxy
+                                            }
                                         }
                                     }
+                                    .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0) - 4, height: geometry.size.height)
+                                    .background(Color(.systemGroupedBackground))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                                    )
                                 }
-                                .frame(width: geometry.size.width - (isQuickNavBarEnabled ? 44 + 8 : 0) - 4, height: geometry.size.height)
-                                .background(Color(.systemGroupedBackground))
-                                .cornerRadius(10)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                                )
                             }
+                            .padding(.horizontal, 2)
                         }
-                        .padding(.horizontal, 2)
                     }
                 }
-                .navigationTitle("")
-                .navigationBarTitleDisplayMode(.inline)
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
-                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索客户、基金代码、基金名称...")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: toggleAllCards) {
-                            Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.accentColor)
-                        }
+                
+                VStack {
+                    Spacer()
+                    if showRefreshCompleteToast {
+                        ToastView(message: "刷新完成", isShowing: $showRefreshCompleteToast)
+                            .padding(.bottom, 20)
                     }
-                    
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索客户、基金代码、基金名称...")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: toggleAllCards) {
+                        Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.accentColor)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 12) {
+                        if isRefreshing {
+                            HStack(spacing: 6) {
+                                if !currentRefreshingClientName.isEmpty {
+                                    Text("\(currentRefreshingClientName)[\(currentRefreshingClientID)]")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                } else if !currentRefreshingClientID.isEmpty {
+                                    Text("[\(currentRefreshingClientID)]")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text("\(refreshProgress.current)/\(refreshProgress.total)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
                         Button(action: {
                             Task {
                                 await refreshAllFundInfo()
@@ -470,6 +497,7 @@ struct ClientView: View {
                             if isRefreshing {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 14, weight: .medium))
@@ -489,11 +517,9 @@ struct ClientView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QuickNavBarStateChanged"))) { _ in
-            // 当定位栏状态改变时，强制刷新视图
             refreshID = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
-            // 当数据更新时，强制刷新视图
             refreshID = UUID()
         }
     }
@@ -501,34 +527,58 @@ struct ClientView: View {
     private func refreshAllFundInfo() async {
         isRefreshing = true
         fundService.addLog("ClientView: 开始刷新所有基金信息...", type: .info)
-        await withTaskGroup(of: FundHolding.self) { group in
-            for holding in dataManager.holdings {
+
+        refreshProgress = (0, dataManager.holdings.count)
+        
+        await withTaskGroup(of: (FundHolding, Int).self) { group in
+            for (index, holding) in dataManager.holdings.enumerated() {
                 group.addTask {
+                    DispatchQueue.main.async {
+                        self.currentRefreshingClientName = holding.clientName
+                        self.currentRefreshingClientID = holding.clientID
+                        self.refreshProgress.current = index
+                    }
+                    
                     let fetchedInfo = await fundService.fetchFundInfo(code: holding.fundCode)
                     var updatedHolding = holding
                     updatedHolding.fundName = fetchedInfo.fundName
                     updatedHolding.currentNav = fetchedInfo.currentNav
                     updatedHolding.navDate = fetchedInfo.navDate
                     updatedHolding.isValid = fetchedInfo.isValid
-                    return updatedHolding
+                    return (updatedHolding, index)
                 }
             }
             
-            var refreshedHoldings: [FundHolding] = []
-            for await updatedHolding in group {
-                refreshedHoldings.append(updatedHolding)
+            var refreshedHoldings: [FundHolding] = Array(repeating: FundHolding.invalid(fundCode: ""), count: dataManager.holdings.count)
+            
+            for await (updatedHolding, index) in group {
+                refreshedHoldings[index] = updatedHolding
+
+                DispatchQueue.main.async {
+                    self.refreshProgress.current = min(self.refreshProgress.current + 1, self.refreshProgress.total)
+                }
             }
             
             DispatchQueue.main.async {
                 for updatedHolding in refreshedHoldings {
-                    dataManager.updateHolding(updatedHolding)
+                    if updatedHolding.fundCode != "" {
+                        dataManager.updateHolding(updatedHolding)
+                    }
                 }
                 dataManager.saveData()
-                // 刷新完成后发送通知
+                
+                self.isRefreshing = false
+                self.currentRefreshingClientName = ""
+                self.currentRefreshingClientID = ""
+                self.showRefreshCompleteToast = true
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    self.showRefreshCompleteToast = false
+                }
+
                 NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
             }
             fundService.addLog("ClientView: 所有基金信息刷新完成。", type: .info)
         }
-        isRefreshing = false
     }
 }

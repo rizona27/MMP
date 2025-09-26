@@ -64,13 +64,11 @@ struct CardButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - AddHoldingView UI
 struct AddHoldingView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
     @Environment(\.dismiss) var dismiss
 
-    // MARK: - State Variables
     @State private var clientName: String = ""
     @State private var clientID: String = ""
     @State private var fundCode: String = ""
@@ -79,13 +77,11 @@ struct AddHoldingView: View {
     @State private var purchaseDate: Date = Date()
     @State private var remarks: String = ""
 
-    // MARK: - Real-time Validation State
     @State private var clientNameError: String? = nil
     @State private var fundCodeError: String? = nil
     @State private var purchaseAmountError: String? = nil
     @State private var purchaseSharesError: String? = nil
 
-    // MARK: - Computed Properties
     private var isFormValid: Bool {
         return clientNameError == nil &&
                fundCodeError == nil &&
@@ -97,12 +93,10 @@ struct AddHoldingView: View {
                !purchaseShares.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    // MARK: - View Body
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    // MARK: - Required Information
                     Group {
                         inputCard(title: "客户姓名", required: true, error: $clientNameError) {
                             TextField("请输入客户姓名", text: $clientName)
@@ -152,7 +146,6 @@ struct AddHoldingView: View {
                     }
                     .padding(.horizontal)
 
-                    // MARK: - Optional Information
                     VStack(alignment: .leading) {
                         Text("选填信息")
                             .font(.headline)
@@ -182,8 +175,7 @@ struct AddHoldingView: View {
                         }
                     }
                     .padding(.horizontal)
-                    
-                    // MARK: - Action Buttons
+
                     HStack(spacing: 20) {
                         Button("取消") {
                             dismiss()
@@ -216,8 +208,7 @@ struct AddHoldingView: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
-    
-    // MARK: - Helper Views
+
     private func inputCard<Content: View>(title: String, required: Bool, error: Binding<String?>, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -245,7 +236,6 @@ struct AddHoldingView: View {
         }
     }
 
-    // MARK: - Real-time Validation Methods
     private func validateClientName(_ name: String) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -370,7 +360,6 @@ struct AddHoldingView: View {
     }
 }
 
-// MARK: - Helper Enum
 private enum FieldType {
     case amount, shares
 }

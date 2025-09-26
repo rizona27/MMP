@@ -1,10 +1,5 @@
 import Foundation
 
-// MARK: - 隐私辅助函数
-
-/// 根据姓名长度，对客户姓名进行隐私模糊化处理。
-/// - Parameter name: 客户的原始姓名。
-/// - Returns: 处理后的模糊化姓名。
 func processClientName(_ name: String) -> String {
     guard !name.isEmpty else { return "" }
     let characters = Array(name)

@@ -1,7 +1,6 @@
     import Foundation
     import Combine
 
-    // MARK: - 基金API枚举
     enum FundAPI: String, CaseIterable, Identifiable {
         case eastmoney = "天天基金"
         case tencent = "腾讯财经"
@@ -181,12 +180,9 @@
             return finalHolding
         }
 
-        // MARK: - 各个API的具体实现
-
         private func fetchFromEastmoney(code: String) async -> FundHolding {
             addLog("基金代码 \(code): 尝试从天天基金API获取数据", type: .network)
-            
-            // 获取第一个接口的数据
+
             let urlString1 = "https://fundgz.1234567.com.cn/js/\(code).js"
             guard let url1 = URL(string: urlString1) else {
                 addLog("基金代码 \(code): 天天基金API URL无效", type: .error)
@@ -222,7 +218,6 @@
                             holding.navDate = date
                         }
                         
-                        // 优先使用单位净值(dwjz)，而不是估算净值(gsz)
                         if let dwjz = json["dwjz"] as? String, let value = Double(dwjz) {
                             holding.currentNav = value
                         } else if let gsz = json["gsz"] as? String, let value = Double(gsz) {
@@ -230,8 +225,7 @@
                         }
                     }
                 }
-                
-                // 获取第二个接口的数据
+
                 let urlString2 = "https://fund.eastmoney.com/pingzhongdata/\(code).js"
                 guard let url2 = URL(string: urlString2) else {
                     addLog("基金代码 \(code): 天天基金详情API URL无效", type: .error)
@@ -251,37 +245,28 @@
                     addLog("基金代码 \(code): 天天基金详情API数据编码失败", type: .error)
                     return holding
                 }
-                
-                // 解析第二个接口的最新净值数据
+
                 var latestNavDate: Date?
                 var latestNavValue: Double?
-                
-                // 查找Data_netWorthTrend数组
+
                 if let trendRange = jsString.range(of: "Data_netWorthTrend\\s*=\\s*\\[([^\\]]+)\\]") {
                     let trendString = String(jsString[trendRange])
-                    // 提取数组内容
                     if let arrayStart = trendString.range(of: "["),
                        let arrayEnd = trendString.range(of: "]") {
                         let arrayContent = String(trendString[arrayStart.upperBound..<arrayEnd.lowerBound])
-                        // 分割数组元素
                         let elements = arrayContent.split(separator: "},{").map(String.init)
                         
-                        // 获取最后一个元素（最新数据）
                         if let lastElement = elements.last {
-                            // 提取日期和净值
                             let datePattern = "\"x\":(\\d+)"
                             let navPattern = "\"y\":([\\d.]+)"
                             
                             if let dateRange = lastElement.range(of: datePattern, options: .regularExpression),
                                let navRange = lastElement.range(of: navPattern, options: .regularExpression) {
-                                // 提取时间戳
                                 let dateString = String(lastElement[dateRange])
                                 if let timestamp = dateString.split(separator: ":").last.flatMap({ Int64($0) }) {
-                                    // 转换为日期（时间戳是毫秒）
                                     latestNavDate = Date(timeIntervalSince1970: TimeInterval(timestamp / 1000))
                                 }
                                 
-                                // 提取净值
                                 let navString = String(lastElement[navRange])
                                 if let nav = navString.split(separator: ":").last.flatMap({ Double($0) }) {
                                     latestNavValue = nav
@@ -290,22 +275,18 @@
                         }
                     }
                 }
-                
-                // 比较两个接口的数据日期，选择最新的
+
                 if let latestDate = latestNavDate, let latestNav = latestNavValue,
                    let firstDate = firstInterfaceDate {
                     
                     if latestDate > firstDate {
-                        // 第二个接口的数据更新
                         holding.navDate = latestDate
                         holding.currentNav = latestNav
                         addLog("基金代码 \(code): 使用详情API的最新净值数据（日期: \(latestDate), 净值: \(latestNav))", type: .success)
                     } else {
-                        // 第一个接口的数据更新或相同
                         addLog("基金代码 \(code): 使用主API的单位净值数据（日期: \(firstDate), 净值: \(holding.currentNav))", type: .success)
                     }
                 } else if let latestDate = latestNavDate, let latestNav = latestNavValue {
-                    // 只有第二个接口有数据
                     holding.navDate = latestDate
                     holding.currentNav = latestNav
                     addLog("基金代码 \(code): 使用详情API的净值数据（日期: \(latestDate), 净值: \(latestNav))", type: .success)
@@ -397,7 +378,6 @@
             }
         }
 
-        // 其他API方法保持不变...
         private func fetchFromTencent(code: String) async -> FundHolding {
             addLog("基金代码 \(code): 尝试从腾讯财经API获取数据", type: .network)
             
@@ -589,7 +569,6 @@
             }
         }
 
-        // MARK: - 缓存相关方法
         private func saveToCache(holding: FundHolding) {
             cacheQueue.sync {
                 let cachedData = CachedFundHolding(holding: holding, timestamp: Date())

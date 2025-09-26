@@ -32,7 +32,6 @@ struct EditHoldingView: View {
         _remarks = State(initialValue: holding.remarks)
     }
 
-    // MARK: - Computed Properties for Validation
     private var isFormValid: Bool {
         return !clientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                !fundCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -46,7 +45,6 @@ struct EditHoldingView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    // MARK: - Required Information
                     Group {
                         inputCard(title: "客户姓名", required: true) {
                             TextField("请输入客户姓名", text: $clientName)
@@ -89,7 +87,6 @@ struct EditHoldingView: View {
                     }
                     .padding(.horizontal)
 
-                    // MARK: - Optional Information
                     VStack(alignment: .leading) {
                         Text("选填信息")
                             .font(.headline)
@@ -119,8 +116,7 @@ struct EditHoldingView: View {
                         }
                     }
                     .padding(.horizontal)
-                    
-                    // MARK: - Action Buttons
+
                     HStack(spacing: 20) {
                         Button("取消") {
                             dismiss()
@@ -219,7 +215,6 @@ struct EditHoldingView: View {
         dismiss()
     }
 
-    // MARK: - Helper Views
     private func inputCard<Content: View>(title: String, required: Bool, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
