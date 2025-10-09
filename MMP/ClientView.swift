@@ -88,6 +88,8 @@ struct ClientView: View {
     @State private var currentRefreshingClientID: String = ""
     @State private var showRefreshCompleteToast = false
 
+    private let maxConcurrentRequests = 3
+
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
             return s1.localizedStandardCompare(s2) == .orderedAscending
@@ -474,7 +476,8 @@ struct ClientView: View {
                         if isRefreshing {
                             HStack(spacing: 6) {
                                 if !currentRefreshingClientName.isEmpty {
-                                    Text("\(currentRefreshingClientName)[\(currentRefreshingClientID)]")
+                                    let displayClientName = isPrivacyModeEnabled ? processClientName(currentRefreshingClientName) : currentRefreshingClientName
+                                    Text("\(displayClientName)[\(currentRefreshingClientID)]")
                                         .font(.caption)
                                         .foregroundColor(.primary)
                                 } else if !currentRefreshingClientID.isEmpty {
@@ -525,60 +528,125 @@ struct ClientView: View {
     }
     
     private func refreshAllFundInfo() async {
-        isRefreshing = true
+        await MainActor.run {
+            isRefreshing = true
+            refreshProgress = (0, dataManager.holdings.count)
+            currentRefreshingClientName = ""
+            currentRefreshingClientID = ""
+        }
+        
         fundService.addLog("ClientView: 开始刷新所有基金信息...", type: .info)
 
-        refreshProgress = (0, dataManager.holdings.count)
+        let totalCount = dataManager.holdings.count
         
-        await withTaskGroup(of: (FundHolding, Int).self) { group in
-            for (index, holding) in dataManager.holdings.enumerated() {
-                group.addTask {
-                    DispatchQueue.main.async {
-                        self.currentRefreshingClientName = holding.clientName
-                        self.currentRefreshingClientID = holding.clientID
-                        self.refreshProgress.current = index
-                    }
-                    
-                    let fetchedInfo = await fundService.fetchFundInfo(code: holding.fundCode)
-                    var updatedHolding = holding
-                    updatedHolding.fundName = fetchedInfo.fundName
-                    updatedHolding.currentNav = fetchedInfo.currentNav
-                    updatedHolding.navDate = fetchedInfo.navDate
-                    updatedHolding.isValid = fetchedInfo.isValid
-                    return (updatedHolding, index)
-                }
-            }
-            
-            var refreshedHoldings: [FundHolding] = Array(repeating: FundHolding.invalid(fundCode: ""), count: dataManager.holdings.count)
-            
-            for await (updatedHolding, index) in group {
-                refreshedHoldings[index] = updatedHolding
-
-                DispatchQueue.main.async {
-                    self.refreshProgress.current = min(self.refreshProgress.current + 1, self.refreshProgress.total)
-                }
-            }
-            
-            DispatchQueue.main.async {
-                for updatedHolding in refreshedHoldings {
-                    if updatedHolding.fundCode != "" {
-                        dataManager.updateHolding(updatedHolding)
-                    }
-                }
-                dataManager.saveData()
+        if totalCount == 0 {
+            await MainActor.run {
+                isRefreshing = false
+                showRefreshCompleteToast = true
                 
-                self.isRefreshing = false
-                self.currentRefreshingClientName = ""
-                self.currentRefreshingClientID = ""
-                self.showRefreshCompleteToast = true
-
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    self.showRefreshCompleteToast = false
+                    showRefreshCompleteToast = false
                 }
-
-                NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
             }
+            return
+        }
+        
+        var updatedHoldings: [UUID: FundHolding] = [:]
+        
+        await withTaskGroup(of: (UUID, FundHolding?).self) { group in
+            var iterator = dataManager.holdings.makeIterator()
+            var activeTasks = 0
+            
+            while activeTasks < maxConcurrentRequests, let holding = iterator.next() {
+                group.addTask {
+                    await self.fetchHoldingWithRetry(holding: holding)
+                }
+                activeTasks += 1
+            }
+
+            while let result = await group.next() {
+                activeTasks -= 1
+                await self.processHoldingResult(result: result, updatedHoldings: &updatedHoldings, totalCount: totalCount)
+                
+                if let nextHolding = iterator.next() {
+                    group.addTask {
+                        await self.fetchHoldingWithRetry(holding: nextHolding)
+                    }
+                    activeTasks += 1
+                }
+            }
+        }
+
+        await MainActor.run {
+            // 更新所有持仓数据
+            for (index, holding) in dataManager.holdings.enumerated() {
+                if let updatedHolding = updatedHoldings[holding.id] {
+                    dataManager.holdings[index] = updatedHolding
+                }
+            }
+            
+            dataManager.saveData()
+            
+            self.isRefreshing = false
+            self.currentRefreshingClientName = ""
+            self.currentRefreshingClientID = ""
+            self.showRefreshCompleteToast = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.showRefreshCompleteToast = false
+            }
+
+            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
             fundService.addLog("ClientView: 所有基金信息刷新完成。", type: .info)
+        }
+    }
+    
+    private func fetchHoldingWithRetry(holding: FundHolding) async -> (UUID, FundHolding?) {
+        var retryCount = 0
+        
+        while retryCount < 3 {
+            let fetchedInfo = await fundService.fetchFundInfo(code: holding.fundCode)
+            var updatedHolding = holding
+            updatedHolding.fundName = fetchedInfo.fundName
+            updatedHolding.currentNav = fetchedInfo.currentNav
+            updatedHolding.navDate = fetchedInfo.navDate
+            updatedHolding.isValid = fetchedInfo.isValid
+            
+            if fetchedInfo.isValid {
+                return (holding.id, updatedHolding)
+            }
+            
+            retryCount += 1
+            if retryCount < 3 {
+                let retryDelay = Double(retryCount) * 0.5
+                try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+            }
+        }
+        
+        return (holding.id, nil)
+    }
+    
+    private func processHoldingResult(result: (UUID, FundHolding?), updatedHoldings: inout [UUID: FundHolding], totalCount: Int) async {
+        let (holdingId, updatedHolding) = result
+        
+        await MainActor.run {
+            if let updatedHolding = updatedHolding {
+                updatedHoldings[holdingId] = updatedHolding
+                
+                // 更新当前刷新显示的客户信息
+                if let originalHolding = dataManager.holdings.first(where: { $0.id == holdingId }) {
+                    currentRefreshingClientName = originalHolding.clientName
+                    currentRefreshingClientID = originalHolding.clientID
+                }
+                
+                refreshProgress.current = min(refreshProgress.current + 1, totalCount)
+                fundService.addLog("基金 \(updatedHolding.fundCode) 刷新成功", type: .success)
+            } else {
+                refreshProgress.current = min(refreshProgress.current + 1, totalCount)
+                if let originalHolding = dataManager.holdings.first(where: { $0.id == holdingId }) {
+                    fundService.addLog("基金 \(originalHolding.fundCode) 刷新失败", type: .error)
+                }
+            }
         }
     }
 }

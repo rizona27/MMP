@@ -19,6 +19,7 @@ class UpdateLogViewModel: ObservableObject {
         UpdateLog(version: "Version 1.5.6", description: "API净值读取错误修正，数据导入刷新模式更新。"),
         UpdateLog(version: "Version 1.5.8", description: "收益率字段及导入逻辑完善。"),
         UpdateLog(version: "Version 1.5.9", description: "客户页面刷新模式更新。"),
+        UpdateLog(version: "Version 1.6.0", description: "客户页面右上角更新进度展示，适配隐私模式。"),
         UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
@@ -60,7 +61,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.5.9      By: rizona.cn@gmail.com")
+                        Text("Version: 1.6.0      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
