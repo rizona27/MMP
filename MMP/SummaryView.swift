@@ -57,15 +57,92 @@ struct SummaryView: View {
     @State private var expandedFundCodes: Set<String> = []
     
     @State private var refreshProgressText: String = ""
-    @State private var showingUnrecognizedFundsAlert = false
     @State private var refreshStats: (success: Int, fail: Int) = (0, 0)
     @State private var failedFunds: [String] = []
     
     @State private var allExpanded = false
     @State private var refreshID = UUID()
+    
+    // 新增状态变量
+    @State private var searchText = ""
+    @State private var currentRefreshingFundName: String = ""
+    @State private var currentRefreshingFundCode: String = ""
+    @State private var showingNavDateToast = false
+    @State private var navDateToastMessage = ""
+    
+    // 双击检测相关状态 - 移除，避免手势冲突
+    @State private var showOutdatedFundsList = false
 
     private let calendar = Calendar.current
     private let maxConcurrentRequests = 3
+    
+    // 获取前一个工作日
+    private var previousWorkday: Date {
+        let today = Date()
+        var date = calendar.startOfDay(for: today)
+        
+        // 循环找到前一个工作日（周一到周五）
+        while true {
+            date = calendar.date(byAdding: .day, value: -1, to: date) ?? date
+            let weekday = calendar.component(.weekday, from: date)
+            // 1: Sunday, 7: Saturday, 2-6: Monday to Friday
+            if weekday >= 2 && weekday <= 6 {
+                return date
+            }
+        }
+    }
+    
+    // 检查是否有基金净值日期符合前一个工作日
+    private var hasLatestNavDate: Bool {
+        // 如果没有持仓数据，或者所有基金都是无效的，返回false
+        if dataManager.holdings.isEmpty || dataManager.holdings.allSatisfy({ !$0.isValid }) {
+            return false
+        }
+        
+        let previousWorkdayStart = previousWorkday
+        return dataManager.holdings.contains { holding in
+            holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
+        }
+    }
+    
+    // 获取不是最新净值的基金列表
+    private var outdatedFunds: [FundHolding] {
+        let previousWorkdayStart = previousWorkday
+        return dataManager.holdings.filter { holding in
+            holding.isValid && !calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
+        }
+    }
+    
+    // 获取不是最新净值的基金代码列表
+    private var outdatedFundCodes: [String] {
+        Array(Set(outdatedFunds.map { $0.fundCode }))
+    }
+    
+    // 获取最新净值日期
+    private var latestNavDate: Date? {
+        dataManager.holdings
+            .filter { $0.isValid && $0.navDate <= Date() }
+            .map { $0.navDate }
+            .max()
+    }
+    
+    private var latestNavDateString: String {
+        guard let latestDate = latestNavDate else {
+            return "暂无数据"
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd"
+        let dateString = formatter.string(from: latestDate)
+        
+        if hasLatestNavDate {
+            return "最新日期: \(dateString)"
+        } else {
+            // 显示前一个工作日的日期
+            let previousWorkdayString = formatter.string(from: previousWorkday)
+            return "待更新: \(previousWorkdayString)"
+        }
+    }
 
     private var recognizedFunds: [String: [FundHolding]] {
         let recognizedFundCodes = Set(dataManager.holdings.filter { $0.isValid }.map { $0.fundCode })
@@ -83,9 +160,22 @@ struct SummaryView: View {
         return groupedFunds
     }
 
+    // 搜索筛选后的持仓
+    private var filteredHoldings: [FundHolding] {
+        if searchText.isEmpty {
+            return dataManager.holdings
+        } else {
+            return dataManager.holdings.filter { holding in
+                holding.fundName.localizedCaseInsensitiveContains(searchText) ||
+                holding.fundCode.localizedCaseInsensitiveContains(searchText) ||
+                holding.clientName.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+
     private var allGroupedFunds: [String: [FundHolding]] {
         var groupedFunds: [String: [FundHolding]] = [:]
-        for holding in dataManager.holdings {
+        for holding in filteredHoldings {
             if groupedFunds[holding.fundCode] == nil {
                 groupedFunds[holding.fundCode] = []
             }
@@ -166,6 +256,45 @@ struct SummaryView: View {
         }
     }
     
+    // 截取基金名称（最多6个字符）
+    private func truncatedFundName(_ name: String) -> String {
+        if name.count <= 6 {
+            return name
+        } else {
+            return String(name.prefix(6)) + "..."
+        }
+    }
+    
+    // 显示不是最新净值的基金列表
+    private func showOutdatedFundsToast() {
+        let outdatedFundsList = outdatedFunds.map { "\($0.fundName)[\($0.fundCode)]" }
+        
+        if outdatedFundsList.isEmpty {
+            // 如果列表为空，不显示Toast
+            return
+        } else {
+            // 最多显示5个，超过用...表示
+            let displayList: [String]
+            if outdatedFundsList.count > 5 {
+                displayList = Array(outdatedFundsList.prefix(5)) + ["..."]
+            } else {
+                displayList = outdatedFundsList
+            }
+            
+            navDateToastMessage = "以下信息待更新:\n" + displayList.joined(separator: "\n")
+            showingNavDateToast = true
+        }
+    }
+    
+    // 处理净值待更新区域的点击事件 - 简化为单击
+    private func handleNavDateTap() {
+        // 如果是"暂无净值数据"，不显示Toast
+        guard latestNavDateString != "暂无数据" else { return }
+        
+        // 单击显示Toast
+        showOutdatedFundsToast()
+    }
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
@@ -221,20 +350,36 @@ struct SummaryView: View {
                     
                         Spacer()
                     
-                        if isRefreshing && !refreshProgressText.isEmpty {
-                            Text(refreshProgressText)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
+                        // 修改刷新进度显示
+                        if isRefreshing {
+                            if !currentRefreshingFundName.isEmpty {
+                                HStack(spacing: 6) {
+                                    Text(truncatedFundName(currentRefreshingFundName))
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.primary)
+                                    Text("\(refreshStats.success + refreshStats.fail)/\(allFundCodesCount)")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                }
                                 .padding(.trailing, 8)
-                        }
-                    
-                        if !unrecognizedFunds.isEmpty {
-                            Button(action: {
-                                showingUnrecognizedFundsAlert = true
-                            }) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
-                                    .font(.system(size: 16))
+                            }
+                        } else {
+                            // 非刷新状态显示最新净值日期
+                            if hasLatestNavDate {
+                                Text(latestNavDateString)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                                    .padding(.trailing, 8)
+                            } else {
+                                Button(action: {
+                                    handleNavDateTap()
+                                }) {
+                                    Text(latestNavDateString)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(latestNavDateString == "暂无数据" ? .secondary : .orange)
+                                        .padding(.trailing, 8)
+                                }
+                                .disabled(latestNavDateString == "暂无数据")
                             }
                         }
                     
@@ -248,7 +393,7 @@ struct SummaryView: View {
                                     .progressViewStyle(CircularProgressViewStyle())
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18, weight: .regular))
+                                    .font(.system(size: 18))
                             }
                         }
                         .disabled(isRefreshing)
@@ -256,86 +401,135 @@ struct SummaryView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
+                    
+                    // 搜索栏 - 调整样式和间距
+                    if !dataManager.holdings.isEmpty {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            TextField("输入客户名、基金代码、基金名称...", text: $searchText)
+                                .textFieldStyle(PlainTextFieldStyle())
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGroupedBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                    }
                 
                     VStack(spacing: 0) {
                         if dataManager.holdings.isEmpty {
-                            Text("当前没有基金持仓数据")
+                            Text("当前没有数据")
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .padding()
+                        } else if filteredHoldings.isEmpty && !searchText.isEmpty {
+                            Text("未找到符合条件的内容")
                                 .foregroundColor(.gray)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .padding()
                         } else {
                             List {
                                 ForEach(sortedFundCodes, id: \.self) { fundCode in
-                                    if let funds = allGroupedFunds[fundCode]?.first {
-                                        DisclosureGroup(isExpanded: Binding(
-                                            get: { expandedFundCodes.contains(fundCode) },
-                                            set: { isExpanded in
-                                                if isExpanded {
-                                                    expandedFundCodes.insert(fundCode)
-                                                } else {
-                                                    expandedFundCodes.remove(fundCode)
+                                    if let funds = allGroupedFunds[fundCode], let firstFund = funds.first {
+                                        // 修复问题1和2：使用自定义展开收起，只显示外部蓝色箭头，隐藏内部灰色箭头
+                                        VStack(spacing: 0) {
+                                            Button(action: {
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    if expandedFundCodes.contains(fundCode) {
+                                                        expandedFundCodes.remove(fundCode)
+                                                    } else {
+                                                        expandedFundCodes.insert(fundCode)
+                                                    }
+                                                }
+                                            }) {
+                                                HStack(alignment: .center) {
+                                                    FundHoldingCardLabel(
+                                                        fund: firstFund,
+                                                        selectedSortKey: selectedSortKey,
+                                                        getColumnValue: { fund, keyPath in
+                                                            getColumnValue(for: fund, keyPath: keyPath)
+                                                        },
+                                                        isExpanded: expandedFundCodes.contains(fundCode),
+                                                        showArrow: false // 隐藏内部灰色箭头
+                                                    )
+                                                    
+                                                    // 添加外部蓝色箭头
+                                                    Image(systemName: expandedFundCodes.contains(fundCode) ? "chevron.down" : "chevron.right")
+                                                        .font(.system(size: 16, weight: .medium))
+                                                        .foregroundColor(.accentColor)
+                                                        .padding(.trailing, 8)
                                                 }
                                             }
-                                        )) {
-                                            VStack(alignment: .leading, spacing: 12) {
-                                                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                                                    GridRow {
-                                                        Text("近1月:")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(.secondary)
-                                                        Text(funds.navReturn1m?.formattedPercentage ?? "/")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(colorForValue(funds.navReturn1m))
-                                                        Text("近3月:")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(.secondary)
-                                                        Text(funds.navReturn3m?.formattedPercentage ?? "/")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(colorForValue(funds.navReturn3m))
+                                            .buttonStyle(PlainButtonStyle())
+                                            
+                                            if expandedFundCodes.contains(fundCode) {
+                                                VStack(alignment: .leading, spacing: 12) {
+                                                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                                                        GridRow {
+                                                            Text("近1月:")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(.secondary)
+                                                            Text(firstFund.navReturn1m?.formattedPercentage ?? "/")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(colorForValue(firstFund.navReturn1m))
+                                                            Text("近3月:")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(.secondary)
+                                                            Text(firstFund.navReturn3m?.formattedPercentage ?? "/")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(colorForValue(firstFund.navReturn3m))
+                                                        }
+                                                        GridRow {
+                                                            Text("近6月:")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(.secondary)
+                                                            Text(firstFund.navReturn6m?.formattedPercentage ?? "/")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(colorForValue(firstFund.navReturn6m))
+                                                            Text("近1年:")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(.secondary)
+                                                            Text(firstFund.navReturn1y?.formattedPercentage ?? "/")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(colorForValue(firstFund.navReturn1y))
+                                                        }
                                                     }
-                                                    GridRow {
-                                                        Text("近6月:")
+                                                    
+                                                    Divider()
+                                                    
+                                                    HStack(alignment: .top) {
+                                                        Text("持有客户:")
                                                             .font(.subheadline)
                                                             .foregroundColor(.secondary)
-                                                        Text(funds.navReturn6m?.formattedPercentage ?? "/")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(colorForValue(funds.navReturn6m))
-                                                        Text("近1年:")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(.secondary)
-                                                        Text(funds.navReturn1y?.formattedPercentage ?? "/")
-                                                            .font(.subheadline)
-                                                            .foregroundColor(colorForValue(funds.navReturn1y))
-                                                    }
-                                                }
-                                                
-                                                Divider()
-                                                
-                                                HStack(alignment: .top) {
-                                                    Text("持有客户:")
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
-                                                        .fixedSize(horizontal: true, vertical: false)
+                                                            .fixedSize(horizontal: true, vertical: false)
                     
-                                                    combinedClientAndReturnText(funds: allGroupedFunds[fundCode] ?? [], getHoldingReturn: getHoldingReturn, sortOrder: sortOrder, isPrivacyModeEnabled: isPrivacyModeEnabled)
-                                                        .font(.subheadline)
-                                                        .lineLimit(nil)
-                                                        .multilineTextAlignment(.leading)
+                                                        combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn, sortOrder: sortOrder, isPrivacyModeEnabled: isPrivacyModeEnabled)
+                                                            .font(.subheadline)
+                                                            .lineLimit(nil)
+                                                            .multilineTextAlignment(.leading)
+                                                    }
                                                 }
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
+                                                .background(Color(.secondarySystemBackground))
+                                                .cornerRadius(10)
+                                                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                                                .padding(.top, 8)
                                             }
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 8)
-                                            .background(Color(.secondarySystemBackground))
-                                            .cornerRadius(10)
-                                            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
-                                        } label: {
-                                            FundHoldingCardLabel(
-                                                fund: funds,
-                                                selectedSortKey: selectedSortKey,
-                                                getColumnValue: { fund, keyPath in
-                                                    getColumnValue(for: fund, keyPath: keyPath)
-                                                }
-                                            )
                                         }
                                         .listRowSeparator(.hidden)
                                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -344,7 +538,7 @@ struct SummaryView: View {
                                 }
                             }
                             .listStyle(PlainListStyle())
-                            .id(refreshID) 
+                            .id(refreshID)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -358,50 +552,112 @@ struct SummaryView: View {
                 }
                 .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
-                .alert("以下基金需要刷新", isPresented: $showingUnrecognizedFundsAlert) {
-                    Button("刷新以上基金", action: {
-                        Task {
-                            await refreshAllUnrecognizedFunds()
-                        }
-                    })
-                    Button("刷新全部基金", action: {
-                        Task {
-                            await refreshAllFunds()
-                        }
-                    })
-                    Button("暂不刷新基金", role: .cancel) { }
-                } message: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        let uniqueUnrecognizedFundCodes = Set(unrecognizedFunds.map { $0.fundCode })
-                        let fundsToRefresh = uniqueUnrecognizedFundCodes.compactMap { code -> String? in
-                            if let fund = dataManager.holdings.first(where: { $0.fundCode == code }) {
-                                return "\(fund.fundName)[\(fund.fundCode)]"
-                            }
-                            return nil
-                        }.joined(separator: "、")
-                    
-                        if !fundsToRefresh.isEmpty {
-                            Text(fundsToRefresh)
-                                .font(.subheadline)
-                                .foregroundColor(.orange)
-                        }
-                    
-                        if !failedFunds.isEmpty {
-                            Text("刷新失败的基金:")
-                                .font(.subheadline)
-                                .foregroundColor(.purple)
-                            Text(failedFunds.joined(separator: "、"))
-                                .font(.caption)
-                        }
-                    }
+                .onTapGesture {
+                    // 点击屏幕其他位置收起键盘
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             
-                ToastView(message: "刷新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
-                    .padding(.bottom, 80)
+                // 刷新完成 Toast - 调整到列表框体位置
+                if showingToast {
+                    VStack {
+                        Spacer()
+                            .frame(height: 180) // 调整这个值使Toast显示在列表框体位置
+                        ToastView(message: "刷新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
+                        Spacer()
+                    }
+                }
+                
+                // 净值待更新基金列表 Toast - 调整到列表框体位置
+                if showingNavDateToast {
+                    VStack {
+                        Spacer()
+                            .frame(height: 180) // 调整这个值使Toast显示在列表框体位置
+                        ToastView(message: navDateToastMessage, isShowing: $showingNavDateToast)
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // 首次打开时检查是否需要自动更新
+            if !hasLatestNavDate && !dataManager.holdings.isEmpty {
+                // 显示净值待更新提示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showOutdatedFundsToast()
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
             refreshID = UUID()
+        }
+    }
+    
+    // 计算所有基金代码数量
+    private var allFundCodesCount: Int {
+        Set(dataManager.holdings.map { $0.fundCode }).count
+    }
+    
+    // 刷新不是最新净值的基金
+    private func refreshOutdatedFunds() async {
+        // 检查是否有需要刷新的基金
+        let fundCodesToRefresh = outdatedFundCodes
+        let totalCount = fundCodesToRefresh.count
+        
+        if totalCount == 0 {
+            await MainActor.run {
+                fundService.addLog("没有需要刷新的基金。", type: .info)
+                // 不再显示"所有基金都已是最新净值"的Toast
+            }
+            return
+        }
+        
+        await MainActor.run {
+            isRefreshing = true
+            refreshStats = (0, 0)
+            failedFunds.removeAll()
+            currentRefreshingFundName = ""
+            currentRefreshingFundCode = ""
+            fundService.addLog("开始刷新不是最新净值的基金...", type: .info)
+        }
+
+        var updatedFunds: [String: FundHolding] = [:]
+
+        await withTaskGroup(of: (String, FundHolding?).self) { group in
+            var iterator = fundCodesToRefresh.makeIterator()
+            var activeTasks = 0
+            
+            while activeTasks < maxConcurrentRequests, let code = iterator.next() {
+                group.addTask {
+                    await fetchFundWithRetry(code: code)
+                }
+                activeTasks += 1
+            }
+
+            while let result = await group.next() {
+                activeTasks -= 1
+                await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
+            
+                if let code = iterator.next() {
+                    group.addTask {
+                        await fetchFundWithRetry(code: code)
+                    }
+                    activeTasks += 1
+                }
+            }
+        }
+
+        await MainActor.run {
+            updateHoldingsWithNewData(updatedFunds: updatedFunds)
+    
+            isRefreshing = false
+            currentRefreshingFundName = ""
+            currentRefreshingFundCode = ""
+            fundService.addLog("不是最新净值的基金刷新完成。成功: \(refreshStats.success), 失败: \(refreshStats.fail)", type: .info)
+            withAnimation {
+                showingToast = true
+            }
+            
+            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
         }
     }
     
@@ -410,7 +666,8 @@ struct SummaryView: View {
             isRefreshing = true
             refreshStats = (0, 0)
             failedFunds.removeAll()
-            refreshProgressText = "准备刷新..."
+            currentRefreshingFundName = ""
+            currentRefreshingFundCode = ""
             fundService.addLog("开始全局刷新所有基金数据...", type: .info)
         }
 
@@ -420,7 +677,6 @@ struct SummaryView: View {
         if totalCount == 0 {
             await MainActor.run {
                 isRefreshing = false
-                refreshProgressText = ""
                 fundService.addLog("没有需要刷新的基金数据。", type: .info)
                 withAnimation {
                     showingToast = true
@@ -459,67 +715,9 @@ struct SummaryView: View {
             updateHoldingsWithNewData(updatedFunds: updatedFunds)
     
             isRefreshing = false
-            refreshProgressText = ""
+            currentRefreshingFundName = ""
+            currentRefreshingFundCode = ""
             fundService.addLog("所有基金刷新完成。成功: \(refreshStats.success), 失败: \(refreshStats.fail)", type: .info)
-            withAnimation {
-                showingToast = true
-            }
-            
-            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
-        }
-    }
-    
-    private func refreshAllUnrecognizedFunds() async {
-        await MainActor.run {
-            isRefreshing = true
-            refreshStats = (0, 0)
-            failedFunds.removeAll()
-            fundService.addLog("开始批量刷新所有需要更新的基金...", type: .info)
-        }
-
-        let fundCodesToRefresh = Array(Set(unrecognizedFunds.map { $0.fundCode }))
-        let totalCount = fundCodesToRefresh.count
-    
-        if totalCount == 0 {
-            await MainActor.run {
-                isRefreshing = false
-                fundService.addLog("没有需要刷新的基金。", type: .info)
-            }
-            return
-        }
-    
-        var updatedFunds: [String: FundHolding] = [:]
-            
-        await withTaskGroup(of: (String, FundHolding?).self) { group in
-            var iterator = fundCodesToRefresh.makeIterator()
-            var activeTasks = 0
-            
-            while activeTasks < maxConcurrentRequests, let code = iterator.next() {
-                group.addTask {
-                    await fetchFundWithRetry(code: code)
-                }
-                activeTasks += 1
-            }
-
-            while let result = await group.next() {
-                activeTasks -= 1
-                await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
-            
-                if let code = iterator.next() {
-                    group.addTask {
-                        await fetchFundWithRetry(code: code)
-                    }
-                    activeTasks += 1
-                }
-            }
-        }
-
-        await MainActor.run {
-            updateHoldingsWithNewData(updatedFunds: updatedFunds)
-    
-            isRefreshing = false
-            refreshProgressText = ""
-            fundService.addLog("所有需要更新的基金刷新完成。成功: \(refreshStats.success), 失败: \(refreshStats.fail)", type: .info)
             withAnimation {
                 showingToast = true
             }
@@ -568,6 +766,12 @@ struct SummaryView: View {
         let (code, fundInfo) = result
     
         await MainActor.run {
+            // 更新当前刷新基金信息
+            if let fundInfo = fundInfo {
+                currentRefreshingFundName = fundInfo.fundName
+                currentRefreshingFundCode = code
+            }
+            
             if let fundInfo = fundInfo {
                 let hasValidName = fundInfo.fundName != "N/A"
                 let hasValidReturnData = fundInfo.navReturn1m != nil || fundInfo.navReturn3m != nil || fundInfo.navReturn6m != nil || fundInfo.navReturn1y != nil
@@ -591,8 +795,6 @@ struct SummaryView: View {
                 failedFunds.append(code)
                 fundService.addLog("基金 \(code) 刷新失败：未获取到基金信息", type: .error)
             }
-    
-            refreshProgressText = "已完成 \(refreshStats.success + refreshStats.fail)/\(totalCount)"
         }
     }
 
@@ -619,6 +821,8 @@ struct FundHoldingCardLabel: View {
     var fund: FundHolding
     var selectedSortKey: SortKey
     var getColumnValue: (FundHolding, String?) -> String
+    var isExpanded: Bool
+    var showArrow: Bool = true // 新增参数控制是否显示箭头
     
     @Environment(\.colorScheme) var colorScheme
     
@@ -656,6 +860,13 @@ struct FundHoldingCardLabel: View {
                     .font(.caption.monospaced())
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 Spacer()
+                
+                // 根据参数决定是否显示箭头
+                if showArrow {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 16)
@@ -685,6 +896,7 @@ struct FundHoldingCardLabel: View {
             }
         }
         .id(identifier)
+        .contentShape(Rectangle()) // 确保整个区域可点击
     }
 }
 
