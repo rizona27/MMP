@@ -7,18 +7,18 @@ struct ToastView: View {
     var body: some View {
         if isShowing {
             Text(message)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
                 .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(.systemGray2)) // 改为单色背景
-                        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4) // 减少阴影强度
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1) // 添加边框增加立体感
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                         )
                 )
                 .transition(

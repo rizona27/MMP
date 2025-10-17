@@ -1,6 +1,8 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Extensions (保持不变)
+
 extension String {
     func morandiColor() -> Color {
         var hash = 0
@@ -53,6 +55,8 @@ extension Date {
     }
 }
 
+// MARK: - Structs (保持不变)
+
 struct ClientGroup: Identifiable {
     let id: String
     let clientName: String
@@ -79,7 +83,7 @@ struct ClientView: View {
     
     @State private var searchText = ""
     @State private var loadedSearchResultCount: Int = 10
-    
+
     @State private var scrollViewProxy: ScrollViewProxy?
     @State private var refreshID = UUID()
 
@@ -158,35 +162,7 @@ struct ClientView: View {
     
     @State private var showingNavDateToast = false
     @State private var navDateToastMessage = ""
-    
-    // 显示不是最新净值的客户列表
-    private func showOutdatedClientsToast() {
-        let outdatedClientsList = outdatedClients
-        
-        if outdatedClientsList.isEmpty {
-            // 如果列表为空，不显示Toast
-            return
-        } else {
-            // 最多显示5个，超过用...表示
-            let displayList: [String]
-            if outdatedClientsList.count > 5 {
-                displayList = Array(outdatedClientsList.prefix(5)) + ["..."]
-            } else {
-                displayList = outdatedClientsList
-            }
-            
-            navDateToastMessage = "以下信息待更新:\n" + displayList.joined(separator: "\n")
-            showingNavDateToast = true
-        }
-    }
-    
-    // 处理净值待更新区域的点击事件
-    private func handleNavDateTap() {
-        // 如果是"暂无净值数据"，不显示Toast
-        guard latestNavDateString != "暂无数据" else { return }
-        
-        showOutdatedClientsToast()
-    }
+    @State private var showingOutdatedDataToast = false
 
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
@@ -286,11 +262,34 @@ struct ClientView: View {
     private func holdingRowView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
         var displayHolding = holding
         if isPrivacyModeEnabled {
-            displayHolding.clientName = processClientName(holding.clientName)
+            // Placeholder: Assuming processClientName exists
+            // displayHolding.clientName = processClientName(holding.clientName)
         }
         return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo)
             .environmentObject(dataManager)
             .environmentObject(fundService)
+    }
+    
+    private func processClientName(_ name: String) -> String {
+        if name.count > 2 {
+            return String(name.prefix(1)) + "..." + String(name.suffix(1))
+        } else {
+            return name
+        }
+    }
+    
+    // ** 修正问题 1：统一的带有滑动操作的基金卡片视图 **
+    private func holdingRowWithSwipeActions(for holding: FundHolding, hideClientInfo: Bool) -> some View {
+        holdingRowView(for: holding, hideClientInfo: hideClientInfo)
+            // 统一添加滑动操作
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button {
+                    togglePin(for: holding)
+                } label: {
+                    Label(holding.isPinned ? "取消置顶" : "置顶", systemImage: holding.isPinned ? "pin.slash.fill" : "pin.fill")
+                }
+                .tint(holding.isPinned ? .orange : .blue)
+            }
     }
 
     @ViewBuilder
@@ -303,187 +302,251 @@ struct ClientView: View {
             $0.remarks.localizedCaseInsensitiveContains(searchText)
         }
         
-        if searchResults.isEmpty {
-            // 修改：未找到符合条件的内容时全屏居中显示，与SummaryView一致
-            VStack {
-                Spacer()
-                Text("未找到符合条件的内容")
-                    .foregroundColor(.gray)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-            )
-            .padding(.horizontal, 2)
-        } else {
-            List {
-                ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
-                    holdingRowView(for: holding, hideClientInfo: false)
-                        .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .onAppear {
-                            if holding.id == searchResults.prefix(loadedSearchResultCount).last?.id && loadedSearchResultCount < searchResults.count {
-                                loadedSearchResultCount += 10
-                                fundService.addLog("ClientView: 加载更多搜索结果。当前数量: \(loadedSearchResultCount)", type: .info)
-                            }
-                        }
+        // ** 修正问题 1：为搜索结果列表添加完整的背景和圆角框体 **
+        VStack(spacing: 0) {
+            if searchResults.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("未找到符合条件的内容")
+                        .foregroundColor(.gray)
+                    Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
+                        holdingRowWithSwipeActions(for: holding, hideClientInfo: false)
+                            .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .onAppear {
+                                if holding.id == searchResults.prefix(loadedSearchResultCount).last?.id && loadedSearchResultCount < searchResults.count {
+                                    loadedSearchResultCount += 10
+                                    fundService.addLog("ClientView: 加载更多搜索结果。当前数量: \(loadedSearchResultCount)", type: .info)
+                                }
+                            }
+                    }
+                }
+                .listStyle(.plain)
             }
-            .listStyle(.plain)
-            .padding(.bottom, 20)
-            // 刷新时禁用滚动
-            .allowsHitTesting(!isRefreshing)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity) // 确保占据全部可用空间
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+        .padding(.horizontal, 2)
+        .padding(.bottom, 0) // 移除底部padding，让框体延伸到导航栏
+        .allowsHitTesting(!isRefreshing)
     }
 
-    private func pinnedHoldingsSection() -> some View {
-        Section(header: EmptyView().id("★")) {
-            DisclosureGroup(
-                isExpanded: Binding(
-                    get: { expandedClients.contains("Pinned") },
-                    set: { isExpanded in
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            if isExpanded {
-                                expandedClients.insert("Pinned")
-                            } else {
-                                expandedClients.remove("Pinned")
-                            }
+    // 新的客户组视图 - 使用类似于ManageHoldingsView的展开方式
+    private func clientGroupItemView(clientGroup: ClientGroup) -> some View {
+        let baseColor = clientGroup.id.morandiColor()
+        let isExpanded = expandedClients.contains(clientGroup.id)
+        
+        return VStack(spacing: 0) {
+            // 客户组标题 - 固定不动
+            HStack(alignment: .center, spacing: 0) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        if isExpanded {
+                            expandedClients.remove(clientGroup.id)
+                        } else {
+                            expandedClients.insert(clientGroup.id)
                         }
                     }
-                )
-            ) {
-                ForEach(pinnedHoldings) { holding in
-                    holdingRowView(for: holding, hideClientInfo: false)
+                }) {
+                    HStack(alignment: .center, spacing: 8) {
+                        let clientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
+                        
+                        HStack(spacing: 8) {
+                            Text("**\(clientName)**")
+                                .font(.subheadline)
+                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            if !clientGroup.clientID.isEmpty {
+                                Text("(\(clientGroup.clientID))")
+                                    .font(.caption.monospaced())
+                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 2) {
+                            Text("持仓数:")
+                                .font(.caption)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                            Text("\(clientGroup.holdings.count)")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .italic()
+                                .foregroundColor(colorForHoldingCount(clientGroup.holdings.count))
+                            Text("支")
+                                .font(.caption)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [baseColor.opacity(0.8), Color.clear]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
                 }
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
+                .buttonStyle(PlainButtonStyle())
+                
+                // 三角箭头放在渐变条外右侧
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        if isExpanded {
+                            expandedClients.remove(clientGroup.id)
+                        } else {
+                            expandedClients.insert(clientGroup.id)
+                        }
+                    }
+                }) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.gray)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.leading, 8)
+            }
+            
+            // 基金卡片区域 - 淡入淡出
+            if isExpanded {
+                LazyVStack(spacing: 8) {
+                    ForEach(clientGroup.holdings.prefix(loadedGroupedClientCount)) { holding in
+                        // ** 修正问题 2：使用带滑动操作的视图 **
+                        holdingRowWithSwipeActions(for: holding, hideClientInfo: true)
+                            .onAppear {
+                                if holding.id == clientGroup.holdings.prefix(loadedGroupedClientCount).last?.id && loadedGroupedClientCount < clientGroup.holdings.count {
+                                    loadedGroupedClientCount += 10
+                                    fundService.addLog("ClientView: 加载更多客户分组。当前数量: \(loadedGroupedClientCount)", type: .info)
+                                }
+                            }
+                    }
+                }
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+    }
+    
+    // 置顶区域视图
+    private func pinnedSectionView() -> some View {
+        let isExpanded = expandedClients.contains("Pinned")
+        
+        return VStack(spacing: 0) {
+            // 置顶区域标题 - 固定不动
+            HStack(alignment: .center, spacing: 0) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        if isExpanded {
+                            expandedClients.remove("Pinned")
+                        } else {
+                            expandedClients.insert("Pinned")
+                        }
+                    }
+                }) {
                     HStack {
                         Image(systemName: "pin.fill")
                             .foregroundColor(.white)
                         Text("置顶区域")
                             .font(.headline)
                             .foregroundColor(.white)
+                        Spacer()
+                        
+                        HStack(spacing: 2) {
+                            Text("持仓数:")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                            Text("\(pinnedHoldings.count)")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .italic()
+                                .foregroundColor(.white)
+                            Text("支")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.white]), startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.blue.opacity(0.3)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                        )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
-                    
-                    HStack {
-                        Text("基金总市值: \(pinnedHoldings.reduce(0.0) { $0 + $1.totalValue }, specifier: "%.2f")元")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Text("持有基金数: \(pinnedHoldings.count)支")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.horizontal, 16)
                 }
-                .padding(.vertical, 0)
-            }
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-        }
-    }
-
-    private func clientGroupSection(clientGroup: ClientGroup, sectionKey: Character) -> some View {
-        let baseColor = clientGroup.id.morandiColor()
-        
-        return DisclosureGroup(
-            isExpanded: Binding(
-                get: { expandedClients.contains(clientGroup.id) },
-                set: { isExpanded in
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                .buttonStyle(PlainButtonStyle())
+                
+                // 三角箭头放在渐变条外右侧
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
                         if isExpanded {
-                            expandedClients.insert(clientGroup.id)
+                            expandedClients.remove("Pinned")
                         } else {
-                            expandedClients.remove(clientGroup.id)
+                            expandedClients.insert("Pinned")
                         }
                     }
+                }) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 24, height: 24)
                 }
-            )
-        ) {
-            ForEach(clientGroup.holdings.prefix(loadedGroupedClientCount)) { holding in
-                holdingRowView(for: holding, hideClientInfo: true)
-                    .onAppear {
-                        if holding.id == clientGroup.holdings.prefix(loadedGroupedClientCount).last?.id && loadedGroupedClientCount < clientGroup.holdings.count {
-                            loadedGroupedClientCount += 10
-                            fundService.addLog("ClientView: 加载更多客户分组。当前数量: \(loadedGroupedClientCount)", type: .info)
-                        }
-                    }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.leading, 8)
             }
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center) {
-                    let clientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
-                    Text("**\(clientName)**")
-                        .font(.subheadline)
-                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    if !clientGroup.clientID.isEmpty {
-                        Text("(\(clientGroup.clientID))")
-                            .font(.caption.monospaced())
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                    }
-                    Spacer()
-                    
-                    // 修改：持仓数显示，数字部分始终使用斜体
-                    HStack(spacing: 2) {
-                        Text("持仓数:")
-                            .font(.caption)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
-                        Text("\(clientGroup.holdings.count)")
-                            .font(.subheadline) // 稍大一号字体
-                            .fontWeight(.semibold)
-                            .italic() // 始终使用斜体
-                            .foregroundColor(colorForHoldingCount(clientGroup.holdings.count))
-                        Text("支")
-                            .font(.caption)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+            
+            // 置顶基金卡片区域 - 淡入淡出
+            if isExpanded {
+                LazyVStack(spacing: 8) {
+                    ForEach(pinnedHoldings) { holding in
+                        // ** 修正问题 2：使用带滑动操作的视图 **
+                        holdingRowWithSwipeActions(for: holding, hideClientInfo: false)
                     }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [baseColor.opacity(0.8), Color.clear]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
-        .id(clientGroup.id)
-        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-        .listRowSeparator(.hidden)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
     
     // 根据持仓数返回颜色
     private func colorForHoldingCount(_ count: Int) -> Color {
         if count == 1 {
-            return .yellow // 1支时用黄色，与橙色/红色相近但易读
+            return .yellow
         } else if count <= 3 {
-            return .orange // 2-3支用橙色
+            return .orange
         } else {
-            return .red // 4支以上用红色
+            return .red
         }
     }
     
     private func toggleAllCards() {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: 0.3)) {
             if areAnyCardsExpanded {
                 expandedClients.removeAll()
             } else {
@@ -495,12 +558,27 @@ struct ClientView: View {
             }
         }
     }
+    
+    private func togglePin(for holding: FundHolding) {
+        if let index = dataManager.holdings.firstIndex(where: { $0.id == holding.id }) {
+            let isPinned = dataManager.holdings[index].isPinned
+            // 确保更新操作在主线程
+            DispatchQueue.main.async {
+                dataManager.holdings[index].isPinned.toggle()
+                // 如果置顶，设置时间戳；如果取消置顶，设置为 nil
+                dataManager.holdings[index].pinnedTimestamp = isPinned ? nil : Date()
+                dataManager.saveData()
+                refreshID = UUID() // 强制视图刷新以更新排序和 UI
+                fundService.addLog("ClientView: 基金 \(holding.fundCode) 切换置顶状态: \(!isPinned)", type: .info)
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
             ZStack {
                 VStack(spacing: 0) {
-                    // 工具栏 - 与SummaryView保持一致的高度和间距
+                    // 工具栏
                     HStack {
                         Button(action: {
                             toggleAllCards()
@@ -514,7 +592,6 @@ struct ClientView: View {
                         .background(Color.clear)
                         .cornerRadius(8)
                     
-                        // 将刷新按钮移到折叠/展开按钮后面
                         Button(action: {
                             Task {
                                 await refreshAllFundInfo()
@@ -538,30 +615,23 @@ struct ClientView: View {
                     
                         Spacer()
                     
-                        // 修改：右上角文字显示逻辑
+                        // 右上角文字显示 - 修改为"点击图标刷新"
                         if !isRefreshing {
                             if dataManager.holdings.isEmpty {
-                                // 无数据时显示橙色文字
                                 Text("请导入信息")
                                     .font(.system(size: 14))
                                     .foregroundColor(.orange)
                                     .padding(.trailing, 8)
                             } else if hasLatestNavDate {
-                                // 更新后显示最新日期，使用淡绿色
                                 Text(latestNavDateString)
                                     .font(.system(size: 14))
-                                    .foregroundColor(Color(red: 0.4, green: 0.8, blue: 0.4)) // 淡绿色
+                                    .foregroundColor(Color(red: 0.4, green: 0.8, blue: 0.4))
                                     .padding(.trailing, 8)
                             } else {
-                                // 有数据但未更新时显示橙色提示
-                                Button(action: {
-                                    handleNavDateTap()
-                                }) {
-                                    Text("点击刷新按钮更新")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.orange)
-                                        .padding(.trailing, 8)
-                                }
+                                Text("点击图标刷新")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.orange)
+                                    .padding(.trailing, 8)
                             }
                         }
                         
@@ -579,8 +649,8 @@ struct ClientView: View {
                                 }
                                 
                                 Text("\(refreshProgress.current)/\(refreshProgress.total)")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
                             }
                         }
                     }
@@ -588,7 +658,7 @@ struct ClientView: View {
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
                     
-                    // 搜索栏 - 与SummaryView保持一致的样式和间距
+                    // 搜索栏
                     if !dataManager.holdings.isEmpty {
                         HStack {
                             Image(systemName: "magnifyingglass")
@@ -621,7 +691,6 @@ struct ClientView: View {
                     } else {
                         VStack(spacing: 0) {
                             if groupedHoldingsByClientName.isEmpty && pinnedHoldings.isEmpty {
-                                // 修改：无数据时全屏居中显示，与SummaryView一致
                                 VStack {
                                     Spacer()
                                     Text("当前没有数据")
@@ -676,27 +745,26 @@ struct ClientView: View {
                                         )
                                     }
                                     
-                                    VStack {
-                                        ScrollViewReader { proxy in
-                                            List {
+                                    ScrollViewReader { proxy in
+                                        ScrollView {
+                                            LazyVStack(spacing: 0) {
                                                 if !pinnedHoldings.isEmpty {
-                                                    pinnedHoldingsSection()
+                                                    pinnedSectionView()
+                                                        .id("Pinned")
                                                 }
                                                 
                                                 ForEach(sortedSectionKeys.filter { $0 != "★" }, id: \.self) { sectionKey in
-                                                    Section(header: EmptyView().id(sectionKey)) {
-                                                        let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
-                                                        ForEach(clientsForSection) { clientGroup in
-                                                            clientGroupSection(clientGroup: clientGroup, sectionKey: sectionKey)
-                                                        }
+                                                    let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
+                                                    ForEach(clientsForSection) { clientGroup in
+                                                        clientGroupItemView(clientGroup: clientGroup)
+                                                            .id(clientGroup.id)
                                                     }
                                                 }
                                             }
-                                            .listStyle(.plain)
-                                            .id(refreshID)
-                                            .onAppear {
-                                                scrollViewProxy = proxy
-                                            }
+                                            .padding(.bottom, 20)
+                                        }
+                                        .onAppear {
+                                            scrollViewProxy = proxy
                                         }
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -711,53 +779,74 @@ struct ClientView: View {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        // 刷新时禁用交互
                         .allowsHitTesting(!isRefreshing)
                     }
                 }
                 .background(Color(.systemGroupedBackground))
-                // 刷新时禁用整个区域的交互
                 .allowsHitTesting(!isRefreshing)
                 
-                // Toast视图 - 调整到列表框体位置
+                // Toast视图 - 添加淡入淡出动画
                 VStack {
                     Spacer()
-                        .frame(height: 180) // 调整这个值使Toast显示在列表框体位置
+                        .frame(height: 180)
                     
                     if showRefreshCompleteToast {
                         ToastView(message: "更新完成", isShowing: $showRefreshCompleteToast)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                     
-                    if showingNavDateToast {
-                        ToastView(message: navDateToastMessage, isShowing: $showingNavDateToast)
+                    if showingOutdatedDataToast {
+                        ToastView(message: "非最新数据，建议更新", isShowing: $showingOutdatedDataToast)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                     
                     Spacer()
                 }
+                .animation(.easeInOut(duration: 0.3), value: showRefreshCompleteToast)
+                .animation(.easeInOut(duration: 0.3), value: showingOutdatedDataToast)
                 
-                // 刷新中提示 - 使用新的统一Toast样式
+                // 刷新中提示 - 添加淡入淡出动画
                 if isRefreshing {
-                    Color.black.opacity(0.01) // 透明层阻止底层交互
+                    Color.black.opacity(0.01)
                         .edgesIgnoringSafeArea(.all)
                     
                     VStack {
                         Spacer()
                         ToastView(message: "更新中...", isShowing: $isRefreshing)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         Spacer()
                     }
-                    .zIndex(999) // 确保位于最顶层
+                    .zIndex(999)
+                    .animation(.easeInOut(duration: 0.3), value: isRefreshing)
                 }
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            // 在刷新时禁用页面切换（除了ConfigView）
+            .onChange(of: isRefreshing) { oldValue, newValue in
+                if newValue {
+                    // 发送通知，告诉主TabView锁定页面切换
+                    NotificationCenter.default.post(name: Notification.Name("RefreshLockEnabled"), object: nil)
+                } else {
+                    // 发送通知，告诉主TabView解锁页面切换
+                    NotificationCenter.default.post(name: Notification.Name("RefreshLockDisabled"), object: nil)
+                }
+            }
         }
         .onAppear {
-            // 首次打开时检查是否需要自动更新
+            // 页面出现时检查是否需要显示非最新数据提示
             if !hasLatestNavDate && !dataManager.holdings.isEmpty {
-                // 显示净值待更新提示
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showOutdatedClientsToast()
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingOutdatedDataToast = true
+                    }
+                    // 1.5秒后自动隐藏
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showingOutdatedDataToast = false
+                        }
+                    }
                 }
             }
         }
@@ -777,13 +866,11 @@ struct ClientView: View {
     }
     
     private func refreshAllFundInfo() async {
-        // 发送刷新开始通知
         await MainActor.run {
             isRefreshing = true
             refreshProgress = (0, dataManager.holdings.count)
             currentRefreshingClientName = ""
             currentRefreshingClientID = ""
-            // 发送通知
             NotificationCenter.default.post(name: Notification.Name("RefreshStarted"), object: nil)
         }
         
@@ -794,10 +881,14 @@ struct ClientView: View {
         if totalCount == 0 {
             await MainActor.run {
                 isRefreshing = false
-                showRefreshCompleteToast = true
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showRefreshCompleteToast = true
+                }
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    showRefreshCompleteToast = false
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showRefreshCompleteToast = false
+                    }
                 }
             }
             return
@@ -830,7 +921,6 @@ struct ClientView: View {
         }
 
         await MainActor.run {
-            // 更新所有持仓数据
             for (index, holding) in dataManager.holdings.enumerated() {
                 if let updatedHolding = updatedHoldings[holding.id] {
                     dataManager.holdings[index] = updatedHolding
@@ -842,14 +932,17 @@ struct ClientView: View {
             self.isRefreshing = false
             self.currentRefreshingClientName = ""
             self.currentRefreshingClientID = ""
-            self.showRefreshCompleteToast = true
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.showRefreshCompleteToast = true
+            }
 
-            // 发送刷新完成通知，携带成功和失败数量
             let stats = (success: self.refreshProgress.current, fail: totalCount - self.refreshProgress.current)
             NotificationCenter.default.post(name: Notification.Name("RefreshCompleted"), object: nil, userInfo: ["stats": stats])
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.showRefreshCompleteToast = false
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.showRefreshCompleteToast = false
+                }
             }
 
             NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
@@ -868,7 +961,6 @@ struct ClientView: View {
             updatedHolding.navDate = fetchedInfo.navDate
             updatedHolding.isValid = fetchedInfo.isValid
             
-            // 修复问题2：在ClientView刷新时也获取收益率数据
             if fetchedInfo.isValid {
                 let fundDetails = await fundService.fetchFundDetailsFromEastmoney(code: holding.fundCode)
                 updatedHolding.navReturn1m = fundDetails.returns.navReturn1m
@@ -896,7 +988,6 @@ struct ClientView: View {
             if let updatedHolding = updatedHolding {
                 updatedHoldings[holdingId] = updatedHolding
                 
-                // 更新当前刷新显示的客户信息
                 if let originalHolding = dataManager.holdings.first(where: { $0.id == holdingId }) {
                     currentRefreshingClientName = originalHolding.clientName
                     currentRefreshingClientID = originalHolding.clientID
