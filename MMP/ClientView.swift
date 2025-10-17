@@ -89,6 +89,12 @@ struct ClientView: View {
     @State private var currentRefreshingClientName: String = ""
     @State private var currentRefreshingClientID: String = ""
     @State private var showRefreshCompleteToast = false
+    
+    // 新增：复制和报告Toast状态
+    @State private var showCopyToast = false
+    @State private var showReportToast = false
+    @State private var copyToastMessage = ""
+    @State private var reportToastMessage = ""
 
     private let maxConcurrentRequests = 3
 
@@ -97,6 +103,19 @@ struct ClientView: View {
     // 滑动置顶相关状态
     @State private var swipedHoldingID: UUID?
     @State private var dragOffset: CGFloat = 0
+    
+    // 日期格式化器
+    private static let dateFormatterYY_MM_DD: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yy-MM-dd"
+        return formatter
+    }()
+
+    private static let dateFormatterMM_DD: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd"
+        return formatter
+    }()
     
     // 获取前一个工作日
     private var previousWorkday: Date {
@@ -272,7 +291,32 @@ struct ClientView: View {
             }
         }()
         
-        return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo)
+        return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo,
+                         onCopyClientID: { message in
+            // 修改复制客户号的Toast格式
+            copyToastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showCopyToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showCopyToast = false
+                }
+            }
+        }, onGenerateReport: { holding in
+            let reportContent = generateReportContent(for: holding)
+            UIPasteboard.general.string = reportContent
+            // 修改报告Toast格式，直接显示报告内容
+            reportToastMessage = "\(reportContent)"
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showReportToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showReportToast = false
+                }
+            }
+        })
             .environmentObject(dataManager)
             .environmentObject(fundService)
     }
@@ -287,6 +331,52 @@ struct ClientView: View {
             // 三个字及以上的名字：显示第一个字 + "*" + 最后一个字
             return String(name.prefix(1)) + "*" + String(name.suffix(1))
         }
+    }
+    
+    // 生成报告内容 - 使用HoldingRow中的格式
+    private func generateReportContent(for holding: FundHolding) -> String {
+        let profit = dataManager.calculateProfit(for: holding)
+        let holdingDays = calculateHoldingDays(for: holding)
+        let purchaseAmountFormatted = formatPurchaseAmount(holding.purchaseAmount)
+        let formattedCurrentNav = String(format: "%.4f", holding.currentNav)
+        let formattedAbsoluteProfit = String(format: "%.2f", profit.absolute)
+        let formattedAnnualizedProfit = String(format: "%.2f", profit.annualized)
+        let absoluteReturnPercentage = holding.purchaseAmount > 0 ? (profit.absolute / holding.purchaseAmount) * 100 : 0
+        let formattedAbsoluteReturnPercentage = String(format: "%.2f", absoluteReturnPercentage)
+
+        let navDateString = Self.dateFormatterMM_DD.string(from: holding.navDate)
+
+        return """
+        \(holding.fundName) | \(holding.fundCode)
+        ├ 购买日期:\(Self.dateFormatterYY_MM_DD.string(from: holding.purchaseDate))
+        ├ 持有天数:\(holdingDays)天
+        ├ 购买金额:\(purchaseAmountFormatted)
+        ├ 最新净值:\(formattedCurrentNav) | \(navDateString)
+        ├ 收益:\(profit.absolute > 0 ? "+" : "")\(formattedAbsoluteProfit)
+        ├ 收益率:\(formattedAnnualizedProfit)%(年化)
+        └ 收益率:\(formattedAbsoluteReturnPercentage)%(绝对)
+        """
+    }
+    
+    // 计算持有天数
+    private func calculateHoldingDays(for holding: FundHolding) -> Int {
+        let endDate = holding.navDate
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: calendar.startOfDay(for: holding.purchaseDate), to: calendar.startOfDay(for: endDate))
+        return (components.day ?? 0) + 1
+    }
+    
+    // 格式化购买金额
+    private func formatPurchaseAmount(_ amount: Double) -> String {
+        var formattedString: String
+        if amount >= 10000 && amount.truncatingRemainder(dividingBy: 10000) == 0 {
+            formattedString = String(format: "%.0f", amount / 10000.0) + "万"
+        } else if amount >= 10000 {
+            formattedString = String(format: "%.2f", amount / 10000.0) + "万"
+        } else {
+            formattedString = String(format: "%.2f", amount) + "元"
+        }
+        return formattedString
     }
     
     // 自定义滑动置顶视图 - 优化按钮尺寸和文字排列
@@ -471,12 +561,6 @@ struct ClientView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         }
-                        
-                        // 将箭头放在按钮内部，确保整个区域可点击
-                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.gray)
-                            .frame(width: 20, height: 20)
                     }
                     .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
                     .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
@@ -554,12 +638,6 @@ struct ClientView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.8))
                         }
-                        
-                        // 将箭头放在按钮内部，确保整个区域可点击
-                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                            .frame(width: 20, height: 20)
                     }
                     .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
                     .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
@@ -813,10 +891,56 @@ struct ClientView: View {
                             .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                     
+                    // 新增：复制和报告Toast
+                    if showCopyToast {
+                        ToastView(message: copyToastMessage, isShowing: $showCopyToast)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                    }
+                    
+                    if showReportToast {
+                        // 报告Toast使用多行显示，去除"报告内容"标题，减少空白行
+                        VStack(spacing: 4) { // 减少spacing从8到4
+                            ScrollView {
+                                Text(reportToastMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.primary)
+                                    .multilineTextAlignment(.leading)
+                                    .padding(.horizontal, 4)
+                            }
+                            .frame(maxHeight: 150)
+                            
+                            Text("以上报告已复制到剪贴板")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2) // 添加小量顶部间距
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10) // 减少垂直内边距
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.systemGray6))
+                                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                        )
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                    showReportToast = false
+                                }
+                            }
+                        }
+                    }
+                    
                     Spacer()
                 }
                 .animation(.easeInOut(duration: 0.3), value: showRefreshCompleteToast)
                 .animation(.easeInOut(duration: 0.3), value: showingOutdatedDataToast)
+                .animation(.easeInOut(duration: 0.3), value: showCopyToast)
+                .animation(.easeInOut(duration: 0.3), value: showReportToast)
                 
                 // 刷新中提示 - 添加淡入淡出动画
                 if isRefreshing {

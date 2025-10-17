@@ -233,29 +233,6 @@ struct ThemeModeView: View {
     }
 }
 
-struct QuickNavBarView: View {
-    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = false
-    
-    var body: some View {
-        CustomCardView(
-            title: "定位栏",
-            description: nil,
-            imageName: "slider.horizontal.3",
-            backgroundColor: Color.purple.opacity(0.1),
-            contentForegroundColor: .purple
-        ) { fgColor in
-            Picker("定位栏", selection: $isQuickNavBarEnabled) {
-                Text("开启").tag(true)
-                Text("关闭").tag(false)
-            }
-            .pickerStyle(.segmented)
-        }
-        .onChange(of: isQuickNavBarEnabled) { _, newValue in
-            NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
-        }
-    }
-}
-
 struct PrivacyModeView: View {
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
@@ -320,7 +297,7 @@ struct ConfigView: View {
     }
 
     func onAppear() {
-        NotificationCenter.default.post(name: NSNotification.Name("QuickNavBarStateChanged"), object: nil)
+        // 移除定位栏状态变更通知
     }
     
     func onDisappear() {
@@ -393,9 +370,8 @@ struct ConfigView: View {
                         }
                         .padding(.horizontal, 8)
 
+                        // 关于卡片 - 调整为一半大小并与其他卡片对齐
                         HStack(spacing: 12) {
-                            QuickNavBarView()
-                                .frame(maxWidth: .infinity)
                             CustomCardView(
                                 title: "关于",
                                 description: "程序版本信息和说明",
@@ -407,6 +383,11 @@ struct ConfigView: View {
                                 hasAnimatedBackground: true
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
+                            
+                            // 添加一个空的占位卡片以保持对齐
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100) // 与其他卡片相同高度
                         }
                         .padding(.horizontal, 8)
 
