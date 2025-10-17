@@ -7,15 +7,29 @@ struct ToastView: View {
     var body: some View {
         if isShowing {
             Text(message)
-                .font(.headline)
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.white)
-                .padding()
-                .background(Color.black.opacity(0.7))
-                .cornerRadius(10)
-                .transition(.opacity)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(.systemGray2)) // 改为单色背景
+                        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4) // 减少阴影强度
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1) // 添加边框增加立体感
+                        )
+                )
+                .transition(
+                    .asymmetric(
+                        insertion: .scale(scale: 0.8).combined(with: .opacity),
+                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                    )
+                )
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        withAnimation {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             isShowing = false
                         }
                     }

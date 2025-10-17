@@ -293,21 +293,34 @@ struct ClientView: View {
             .environmentObject(fundService)
     }
 
+    @ViewBuilder
     private func searchResultsListView() -> some View {
-        List {
-            let searchResults = dataManager.holdings.filter {
-                $0.clientName.localizedCaseInsensitiveContains(searchText) ||
-                $0.fundCode.localizedCaseInsensitiveContains(searchText) ||
-                $0.fundName.localizedCaseInsensitiveContains(searchText) ||
-                $0.clientID.localizedCaseInsensitiveContains(searchText) ||
-                $0.remarks.localizedCaseInsensitiveContains(searchText)
-            }
-            
-            if searchResults.isEmpty {
+        let searchResults = dataManager.holdings.filter {
+            $0.clientName.localizedCaseInsensitiveContains(searchText) ||
+            $0.fundCode.localizedCaseInsensitiveContains(searchText) ||
+            $0.fundName.localizedCaseInsensitiveContains(searchText) ||
+            $0.clientID.localizedCaseInsensitiveContains(searchText) ||
+            $0.remarks.localizedCaseInsensitiveContains(searchText)
+        }
+        
+        if searchResults.isEmpty {
+            // 修改：未找到符合条件的内容时全屏居中显示，与SummaryView一致
+            VStack {
+                Spacer()
                 Text("未找到符合条件的内容")
                     .foregroundColor(.gray)
-                    .padding()
-            } else {
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            )
+            .padding(.horizontal, 2)
+        } else {
+            List {
                 ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
                     holdingRowView(for: holding, hideClientInfo: false)
                         .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
@@ -320,9 +333,11 @@ struct ClientView: View {
                         }
                 }
             }
+            .listStyle(.plain)
+            .padding(.bottom, 20)
+            // 刷新时禁用滚动
+            .allowsHitTesting(!isRefreshing)
         }
-        .listStyle(.plain)
-        .padding(.bottom, 20)
     }
 
     private func pinnedHoldingsSection() -> some View {
@@ -421,9 +436,20 @@ struct ClientView: View {
                     }
                     Spacer()
                     
-                    Text("持仓数: \(clientGroup.holdings.count)支")
-                        .font(.caption)
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    // 修改：持仓数显示，数字部分始终使用斜体
+                    HStack(spacing: 2) {
+                        Text("持仓数:")
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                        Text("\(clientGroup.holdings.count)")
+                            .font(.subheadline) // 稍大一号字体
+                            .fontWeight(.semibold)
+                            .italic() // 始终使用斜体
+                            .foregroundColor(colorForHoldingCount(clientGroup.holdings.count))
+                        Text("支")
+                            .font(.caption)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
+                    }
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
@@ -445,8 +471,19 @@ struct ClientView: View {
         .listRowSeparator(.hidden)
     }
     
+    // 根据持仓数返回颜色
+    private func colorForHoldingCount(_ count: Int) -> Color {
+        if count == 1 {
+            return .yellow // 1支时用黄色，与橙色/红色相近但易读
+        } else if count <= 3 {
+            return .orange // 2-3支用橙色
+        } else {
+            return .red // 4支以上用红色
+        }
+    }
+    
     private func toggleAllCards() {
-        withAnimation {
+        withAnimation(.easeInOut(duration: 0.2)) {
             if areAnyCardsExpanded {
                 expandedClients.removeAll()
             } else {
@@ -477,25 +514,54 @@ struct ClientView: View {
                         .background(Color.clear)
                         .cornerRadius(8)
                     
+                        // 将刷新按钮移到折叠/展开按钮后面
+                        Button(action: {
+                            Task {
+                                await refreshAllFundInfo()
+                            }
+                        }) {
+                            if isRefreshing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .disabled(isRefreshing)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.clear)
+                        .cornerRadius(8)
+                    
                         Spacer()
                     
-                        // 新增：显示最新净值日期
+                        // 修改：右上角文字显示逻辑
                         if !isRefreshing {
-                            if hasLatestNavDate {
+                            if dataManager.holdings.isEmpty {
+                                // 无数据时显示橙色文字
+                                Text("请导入信息")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.orange)
+                                    .padding(.trailing, 8)
+                            } else if hasLatestNavDate {
+                                // 更新后显示最新日期，使用淡绿色
                                 Text(latestNavDateString)
                                     .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color(red: 0.4, green: 0.8, blue: 0.4)) // 淡绿色
                                     .padding(.trailing, 8)
                             } else {
+                                // 有数据但未更新时显示橙色提示
                                 Button(action: {
                                     handleNavDateTap()
                                 }) {
-                                    Text(latestNavDateString)
+                                    Text("点击刷新按钮更新")
                                         .font(.system(size: 14))
-                                        .foregroundColor(latestNavDateString == "暂无数据" ? .secondary : .orange)
+                                        .foregroundColor(.orange)
                                         .padding(.trailing, 8)
                                 }
-                                .disabled(latestNavDateString == "暂无数据")
                             }
                         }
                         
@@ -517,23 +583,6 @@ struct ClientView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
-                        
-                        Button(action: {
-                            Task {
-                                await refreshAllFundInfo()
-                            }
-                        }) {
-                            if isRefreshing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.accentColor)
-                            }
-                        }
-                        .disabled(isRefreshing)
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -572,7 +621,7 @@ struct ClientView: View {
                     } else {
                         VStack(spacing: 0) {
                             if groupedHoldingsByClientName.isEmpty && pinnedHoldings.isEmpty {
-                                // 修改：添加白色框体，与SummaryView一致
+                                // 修改：无数据时全屏居中显示，与SummaryView一致
                                 VStack {
                                     Spacer()
                                     Text("当前没有数据")
@@ -662,9 +711,13 @@ struct ClientView: View {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // 刷新时禁用交互
+                        .allowsHitTesting(!isRefreshing)
                     }
                 }
                 .background(Color(.systemGroupedBackground))
+                // 刷新时禁用整个区域的交互
+                .allowsHitTesting(!isRefreshing)
                 
                 // Toast视图 - 调整到列表框体位置
                 VStack {
@@ -672,7 +725,7 @@ struct ClientView: View {
                         .frame(height: 180) // 调整这个值使Toast显示在列表框体位置
                     
                     if showRefreshCompleteToast {
-                        ToastView(message: "刷新完成", isShowing: $showRefreshCompleteToast)
+                        ToastView(message: "更新完成", isShowing: $showRefreshCompleteToast)
                     }
                     
                     if showingNavDateToast {
@@ -680,6 +733,19 @@ struct ClientView: View {
                     }
                     
                     Spacer()
+                }
+                
+                // 刷新中提示 - 使用新的统一Toast样式
+                if isRefreshing {
+                    Color.black.opacity(0.01) // 透明层阻止底层交互
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        Spacer()
+                        ToastView(message: "更新中...", isShowing: $isRefreshing)
+                        Spacer()
+                    }
+                    .zIndex(999) // 确保位于最顶层
                 }
             }
             .navigationTitle("")
@@ -711,11 +777,14 @@ struct ClientView: View {
     }
     
     private func refreshAllFundInfo() async {
+        // 发送刷新开始通知
         await MainActor.run {
             isRefreshing = true
             refreshProgress = (0, dataManager.holdings.count)
             currentRefreshingClientName = ""
             currentRefreshingClientID = ""
+            // 发送通知
+            NotificationCenter.default.post(name: Notification.Name("RefreshStarted"), object: nil)
         }
         
         fundService.addLog("ClientView: 开始刷新所有基金信息...", type: .info)
@@ -774,6 +843,10 @@ struct ClientView: View {
             self.currentRefreshingClientName = ""
             self.currentRefreshingClientID = ""
             self.showRefreshCompleteToast = true
+
+            // 发送刷新完成通知，携带成功和失败数量
+            let stats = (success: self.refreshProgress.current, fail: totalCount - self.refreshProgress.current)
+            NotificationCenter.default.post(name: Notification.Name("RefreshCompleted"), object: nil, userInfo: ["stats": stats])
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 self.showRefreshCompleteToast = false

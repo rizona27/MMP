@@ -125,24 +125,6 @@ struct SummaryView: View {
             .map { $0.navDate }
             .max()
     }
-    
-    private var latestNavDateString: String {
-        guard let latestDate = latestNavDate else {
-            return "暂无数据"
-        }
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd"
-        let dateString = formatter.string(from: latestDate)
-        
-        if hasLatestNavDate {
-            return "最新日期: \(dateString)"
-        } else {
-            // 显示前一个工作日的日期
-            let previousWorkdayString = formatter.string(from: previousWorkday)
-            return "待更新: \(previousWorkdayString)"
-        }
-    }
 
     private var recognizedFunds: [String: [FundHolding]] {
         let recognizedFundCodes = Set(dataManager.holdings.filter { $0.isValid }.map { $0.fundCode })
@@ -222,7 +204,7 @@ struct SummaryView: View {
     }
 
     private func toggleAllCards() {
-        withAnimation {
+        withAnimation(.easeInOut(duration: 0.2)) {
             if areAnyCardsExpanded {
                 expandedFundCodes.removeAll()
             } else {
@@ -286,15 +268,6 @@ struct SummaryView: View {
         }
     }
     
-    // 处理净值待更新区域的点击事件 - 简化为单击
-    private func handleNavDateTap() {
-        // 如果是"暂无净值数据"，不显示Toast
-        guard latestNavDateString != "暂无数据" else { return }
-        
-        // 单击显示Toast
-        showOutdatedFundsToast()
-    }
-    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
@@ -350,53 +323,7 @@ struct SummaryView: View {
                     
                         Spacer()
                     
-                        // 修改刷新进度显示
-                        if isRefreshing {
-                            if !currentRefreshingFundName.isEmpty {
-                                HStack(spacing: 6) {
-                                    Text(truncatedFundName(currentRefreshingFundName))
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
-                                    Text("\(refreshStats.success + refreshStats.fail)/\(allFundCodesCount)")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.trailing, 8)
-                            }
-                        } else {
-                            // 非刷新状态显示最新净值日期
-                            if hasLatestNavDate {
-                                Text(latestNavDateString)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                                    .padding(.trailing, 8)
-                            } else {
-                                Button(action: {
-                                    handleNavDateTap()
-                                }) {
-                                    Text(latestNavDateString)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(latestNavDateString == "暂无数据" ? .secondary : .orange)
-                                        .padding(.trailing, 8)
-                                }
-                                .disabled(latestNavDateString == "暂无数据")
-                            }
-                        }
-                    
-                        Button(action: {
-                            Task {
-                                await refreshAllFunds()
-                            }
-                        }) {
-                            if isRefreshing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18))
-                            }
-                        }
-                        .disabled(isRefreshing)
+                        // 移除右上角日期显示功能
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -432,20 +359,41 @@ struct SummaryView: View {
                 
                     VStack(spacing: 0) {
                         if dataManager.holdings.isEmpty {
-                            Text("当前没有数据")
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .padding()
+                            // 修改：无数据时全屏居中显示
+                            VStack {
+                                Spacer()
+                                Text("当前没有数据")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            )
+                            .padding(.horizontal, 2)
                         } else if filteredHoldings.isEmpty && !searchText.isEmpty {
-                            Text("未找到符合条件的内容")
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .padding()
+                            // 修改：未找到符合条件的内容时全屏居中显示
+                            VStack {
+                                Spacer()
+                                Text("未找到符合条件的内容")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                            )
+                            .padding(.horizontal, 2)
                         } else {
                             List {
                                 ForEach(sortedFundCodes, id: \.self) { fundCode in
                                     if let funds = allGroupedFunds[fundCode], let firstFund = funds.first {
-                                        // 修复问题1和2：使用自定义展开收起，只显示外部蓝色箭头，隐藏内部灰色箭头
                                         VStack(spacing: 0) {
                                             Button(action: {
                                                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -467,10 +415,11 @@ struct SummaryView: View {
                                                         showArrow: false // 隐藏内部灰色箭头
                                                     )
                                                     
-                                                    // 添加外部蓝色箭头
+                                                    // 添加外部蓝色箭头 - 确保与ClientView一致的长度
                                                     Image(systemName: expandedFundCodes.contains(fundCode) ? "chevron.down" : "chevron.right")
                                                         .font(.system(size: 16, weight: .medium))
                                                         .foregroundColor(.accentColor)
+                                                        .frame(width: 20, height: 20)
                                                         .padding(.trailing, 8)
                                                 }
                                             }
@@ -525,10 +474,11 @@ struct SummaryView: View {
                                                 }
                                                 .padding(.horizontal, 16)
                                                 .padding(.vertical, 8)
-                                                .background(Color(.secondarySystemBackground))
+                                                .background(Color(.systemBackground))
                                                 .cornerRadius(10)
                                                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
                                                 .padding(.top, 8)
+                                                .transition(.opacity) // 修改：改为淡入淡出动画，与ClientView一致
                                             }
                                         }
                                         .listRowSeparator(.hidden)
@@ -539,6 +489,8 @@ struct SummaryView: View {
                             }
                             .listStyle(PlainListStyle())
                             .id(refreshID)
+                            // 刷新时禁用滚动
+                            .allowsHitTesting(!isRefreshing)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -549,6 +501,8 @@ struct SummaryView: View {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
                     .padding(.horizontal, 2)
+                    // 刷新时禁用交互
+                    .allowsHitTesting(!isRefreshing)
                 }
                 .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
@@ -556,13 +510,15 @@ struct SummaryView: View {
                     // 点击屏幕其他位置收起键盘
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
+                // 刷新时禁用整个区域的交互
+                .allowsHitTesting(!isRefreshing)
             
                 // 刷新完成 Toast - 调整到列表框体位置
                 if showingToast {
                     VStack {
                         Spacer()
                             .frame(height: 180) // 调整这个值使Toast显示在列表框体位置
-                        ToastView(message: "刷新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
+                        ToastView(message: "更新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)", isShowing: $showingToast)
                         Spacer()
                     }
                 }
@@ -576,14 +532,36 @@ struct SummaryView: View {
                         Spacer()
                     }
                 }
+                
+                // 刷新中提示 - 使用新的统一Toast样式
+                if isRefreshing {
+                    Color.black.opacity(0.01) // 透明层阻止底层交互
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        Spacer()
+                        ToastView(message: "更新中...", isShowing: $isRefreshing)
+                        Spacer()
+                    }
+                    .zIndex(999) // 确保位于最顶层
+                }
             }
         }
         .onAppear {
-            // 首次打开时检查是否需要自动更新
-            if !hasLatestNavDate && !dataManager.holdings.isEmpty {
-                // 显示净值待更新提示
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showOutdatedFundsToast()
+            // 监听刷新状态变化
+            NotificationCenter.default.addObserver(forName: Notification.Name("RefreshStarted"), object: nil, queue: .main) { _ in
+                self.isRefreshing = true
+            }
+            
+            NotificationCenter.default.addObserver(forName: Notification.Name("RefreshCompleted"), object: nil, queue: .main) { notification in
+                self.isRefreshing = false
+                if let stats = notification.userInfo?["stats"] as? (Int, Int) {
+                    self.refreshStats = stats
+                    self.showingToast = true
+                    // 2秒后隐藏Toast
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        self.showingToast = false
+                    }
                 }
             }
         }
