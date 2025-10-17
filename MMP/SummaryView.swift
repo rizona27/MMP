@@ -228,8 +228,8 @@ struct SummaryView: View {
                         }
                     }
                 }) {
-                    HStack(alignment: .center, spacing: 6) {
-                        HStack(spacing: 8) {
+                    HStack(alignment: .center, spacing: 4) {
+                        HStack(spacing: 6) {
                             Text("**\(firstFund.fundName)**")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.primary)
@@ -263,15 +263,15 @@ struct SummaryView: View {
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(colorForValue(numberValue))
                             }
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 6)
                         }
                         
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.gray)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 16, height: 16)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(

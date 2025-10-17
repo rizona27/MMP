@@ -531,7 +531,7 @@ struct ClientView: View {
                         }
                     }
                 }) {
-                    HStack(alignment: .center, spacing: 6) {
+                    HStack(alignment: .center, spacing: 4) {
                         let clientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
                         
                         HStack(spacing: 6) {
@@ -562,7 +562,7 @@ struct ClientView: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         }
                     }
-                    .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
+                    .padding(.vertical, 6) // 统一垂直内边距与SummaryView一致
                     .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
