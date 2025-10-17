@@ -151,16 +151,18 @@ struct HoldingRow: View {
             }
             .padding(.top, 4)
 
+            // 修改：将按钮移动到右下角
             HStack {
-                Button("报告") {
-                    UIPasteboard.general.string = reportContent
-                    copiedText = "报告已复制到剪贴板"
-                    showCopyConfirm = true
+                if !holding.remarks.isEmpty {
+                    Text("备注: \(holding.remarks)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .font(.caption)
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-
+                
+                Spacer()
+                
                 Button(action: {
                     if !holding.clientID.isEmpty {
                         UIPasteboard.general.string = holding.clientID
@@ -174,17 +176,16 @@ struct HoldingRow: View {
                 .buttonStyle(.plain)
                 .foregroundColor(holding.clientID.isEmpty ? .gray : .accentColor)
                 .disabled(holding.clientID.isEmpty)
-                .padding(.leading, 8)
                 
-                if !holding.remarks.isEmpty {
-                    Text("备注: \(holding.remarks)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .padding(.leading, 8)
+                Button("报告") {
+                    UIPasteboard.general.string = reportContent
+                    copiedText = "报告已复制到剪贴板"
+                    showCopyConfirm = true
                 }
-                Spacer()
+                .font(.caption)
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+                .padding(.leading, 8)
             }
             .padding(.top, 4)
         }

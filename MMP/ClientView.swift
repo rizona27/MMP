@@ -76,7 +76,6 @@ struct ClientView: View {
 
     @State private var expandedClients: Set<String> = []
     
-    @AppStorage("isQuickNavBarEnabled") private var isQuickNavBarEnabled: Bool = false
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
     
     @State private var loadedGroupedClientCount: Int = 10
@@ -84,7 +83,6 @@ struct ClientView: View {
     @State private var searchText = ""
     @State private var loadedSearchResultCount: Int = 10
 
-    @State private var scrollViewProxy: ScrollViewProxy?
     @State private var refreshID = UUID()
 
     @State private var refreshProgress: (current: Int, total: Int) = (0, 0)
@@ -95,6 +93,10 @@ struct ClientView: View {
     private let maxConcurrentRequests = 3
 
     private let calendar = Calendar.current
+    
+    // 滑动置顶相关状态
+    @State private var swipedHoldingID: UUID?
+    @State private var dragOffset: CGFloat = 0
     
     // 获取前一个工作日
     private var previousWorkday: Date {
@@ -260,36 +262,116 @@ struct ClientView: View {
     }
 
     private func holdingRowView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
-        var displayHolding = holding
-        if isPrivacyModeEnabled {
-            // Placeholder: Assuming processClientName exists
-            // displayHolding.clientName = processClientName(holding.clientName)
-        }
+        let displayHolding: FundHolding = {
+            if isPrivacyModeEnabled {
+                var modifiedHolding = holding
+                modifiedHolding.clientName = processClientName(holding.clientName)
+                return modifiedHolding
+            } else {
+                return holding
+            }
+        }()
+        
         return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo)
             .environmentObject(dataManager)
             .environmentObject(fundService)
     }
     
     private func processClientName(_ name: String) -> String {
-        if name.count > 2 {
-            return String(name.prefix(1)) + "..." + String(name.suffix(1))
-        } else {
+        if name.count <= 1 {
             return name
+        } else if name.count == 2 {
+            // 两个字的名字：显示第一个字 + "*"
+            return String(name.prefix(1)) + "*"
+        } else {
+            // 三个字及以上的名字：显示第一个字 + "*" + 最后一个字
+            return String(name.prefix(1)) + "*" + String(name.suffix(1))
         }
     }
     
-    // ** 修正问题 1：统一的带有滑动操作的基金卡片视图 **
-    private func holdingRowWithSwipeActions(for holding: FundHolding, hideClientInfo: Bool) -> some View {
-        holdingRowView(for: holding, hideClientInfo: hideClientInfo)
-            // 统一添加滑动操作
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button {
-                    togglePin(for: holding)
-                } label: {
-                    Label(holding.isPinned ? "取消置顶" : "置顶", systemImage: holding.isPinned ? "pin.slash.fill" : "pin.fill")
+    // 自定义滑动置顶视图 - 优化按钮尺寸和文字排列
+    private func swipeToPinView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
+        let isSwiped = swipedHoldingID == holding.id
+        
+        return ZStack(alignment: .leading) {
+            // 背景置顶按钮 - 优化尺寸和文字排列
+            if isSwiped {
+                HStack {
+                    Button(action: {
+                        togglePin(for: holding)
+                        withAnimation(.spring()) {
+                            dragOffset = 0
+                            swipedHoldingID = nil
+                        }
+                    }) {
+                        VStack(spacing: 2) {
+                            Image(systemName: holding.isPinned ? "pin.slash.fill" : "pin.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                            
+                            if holding.isPinned {
+                                // 取消置顶 - 竖直排列，一字一行
+                                VStack(spacing: 0) {
+                                    Text("取")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Text("消")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Text("置")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Text("顶")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.white)
+                                }
+                                .lineLimit(1)
+                            } else {
+                                // 置顶 - 竖直排列
+                                Text("置\n顶")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .frame(width: 50)
+                        .frame(maxHeight: .infinity) // 与基金卡片相同高度
+                        .background(holding.isPinned ? Color.orange : Color.blue)
+                        .cornerRadius(6)
+                    }
+                    .padding(.leading, 8)
+                    
+                    Spacer()
                 }
-                .tint(holding.isPinned ? .orange : .blue)
             }
+            
+            // 基金卡片
+            holdingRowView(for: holding, hideClientInfo: hideClientInfo)
+                .offset(x: isSwiped ? dragOffset : 0)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            // 只允许从左向右滑动
+                            if value.translation.width > 0 {
+                                dragOffset = min(value.translation.width, 60)
+                                swipedHoldingID = holding.id
+                            }
+                        }
+                        .onEnded { value in
+                            // 如果滑动超过阈值，触发置顶操作
+                            if value.translation.width > 40 {
+                                togglePin(for: holding)
+                            }
+                            
+                            // 恢复位置
+                            withAnimation(.spring()) {
+                                dragOffset = 0
+                                swipedHoldingID = nil
+                            }
+                        }
+                )
+        }
     }
 
     @ViewBuilder
@@ -302,7 +384,6 @@ struct ClientView: View {
             $0.remarks.localizedCaseInsensitiveContains(searchText)
         }
         
-        // ** 修正问题 1：为搜索结果列表添加完整的背景和圆角框体 **
         VStack(spacing: 0) {
             if searchResults.isEmpty {
                 VStack {
@@ -313,23 +394,25 @@ struct ClientView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
-                        holdingRowWithSwipeActions(for: holding, hideClientInfo: false)
-                            .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
-                            .listRowSeparator(.hidden)
-                            .onAppear {
-                                if holding.id == searchResults.prefix(loadedSearchResultCount).last?.id && loadedSearchResultCount < searchResults.count {
-                                    loadedSearchResultCount += 10
-                                    fundService.addLog("ClientView: 加载更多搜索结果。当前数量: \(loadedSearchResultCount)", type: .info)
+                // 使用ScrollView + LazyVStack，配合自定义滑动手势
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
+                            swipeToPinView(for: holding, hideClientInfo: false)
+                                .onAppear {
+                                    if holding.id == searchResults.prefix(loadedSearchResultCount).last?.id && loadedSearchResultCount < searchResults.count {
+                                        loadedSearchResultCount += 10
+                                        fundService.addLog("ClientView: 加载更多搜索结果。当前数量: \(loadedSearchResultCount)", type: .info)
+                                    }
                                 }
-                            }
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 }
-                .listStyle(.plain)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity) // 确保占据全部可用空间
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .overlay(
@@ -337,17 +420,17 @@ struct ClientView: View {
                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
         )
         .padding(.horizontal, 2)
-        .padding(.bottom, 0) // 移除底部padding，让框体延伸到导航栏
+        .padding(.bottom, 0)
         .allowsHitTesting(!isRefreshing)
     }
 
-    // 新的客户组视图 - 使用类似于ManageHoldingsView的展开方式
+    // 客户组视图 - 统一姓名栏高度与SummaryView一致
     private func clientGroupItemView(clientGroup: ClientGroup) -> some View {
         let baseColor = clientGroup.id.morandiColor()
         let isExpanded = expandedClients.contains(clientGroup.id)
         
         return VStack(spacing: 0) {
-            // 客户组标题 - 固定不动
+            // 客户组标题 - 统一高度
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -358,18 +441,18 @@ struct ClientView: View {
                         }
                     }
                 }) {
-                    HStack(alignment: .center, spacing: 8) {
+                    HStack(alignment: .center, spacing: 6) {
                         let clientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
                         
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Text("**\(clientName)**")
-                                .font(.subheadline)
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(colorScheme == .dark ? .white : .black)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             if !clientGroup.clientID.isEmpty {
                                 Text("(\(clientGroup.clientID))")
-                                    .font(.caption.monospaced())
+                                    .font(.system(size: 11))
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                             }
                         }
@@ -378,20 +461,25 @@ struct ClientView: View {
                         
                         HStack(spacing: 2) {
                             Text("持仓数:")
-                                .font(.caption)
+                                .font(.system(size: 11))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                             Text("\(clientGroup.holdings.count)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                                .font(.system(size: 12, weight: .semibold))
                                 .italic()
                                 .foregroundColor(colorForHoldingCount(clientGroup.holdings.count))
                             Text("支")
-                                .font(.caption)
+                                .font(.system(size: 11))
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         }
+                        
+                        // 将箭头放在按钮内部，确保整个区域可点击
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.gray)
+                            .frame(width: 20, height: 20)
                     }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
+                    .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         LinearGradient(
@@ -401,36 +489,17 @@ struct ClientView: View {
                         )
                     )
                     .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) // 统一圆角半径与SummaryView一致
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2) // 统一阴影与SummaryView一致
                 }
                 .buttonStyle(PlainButtonStyle())
-                
-                // 三角箭头放在渐变条外右侧
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        if isExpanded {
-                            expandedClients.remove(clientGroup.id)
-                        } else {
-                            expandedClients.insert(clientGroup.id)
-                        }
-                    }
-                }) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.gray)
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.leading, 8)
             }
             
-            // 基金卡片区域 - 淡入淡出
+            // 基金卡片区域
             if isExpanded {
                 LazyVStack(spacing: 8) {
                     ForEach(clientGroup.holdings.prefix(loadedGroupedClientCount)) { holding in
-                        // ** 修正问题 2：使用带滑动操作的视图 **
-                        holdingRowWithSwipeActions(for: holding, hideClientInfo: true)
+                        swipeToPinView(for: holding, hideClientInfo: true)
                             .onAppear {
                                 if holding.id == clientGroup.holdings.prefix(loadedGroupedClientCount).last?.id && loadedGroupedClientCount < clientGroup.holdings.count {
                                     loadedGroupedClientCount += 10
@@ -439,20 +508,21 @@ struct ClientView: View {
                             }
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
     
-    // 置顶区域视图
+    // 置顶区域视图 - 统一姓名栏高度与SummaryView一致
     private func pinnedSectionView() -> some View {
         let isExpanded = expandedClients.contains("Pinned")
         
         return VStack(spacing: 0) {
-            // 置顶区域标题 - 固定不动
+            // 置顶区域标题 - 统一高度
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -465,28 +535,34 @@ struct ClientView: View {
                 }) {
                     HStack {
                         Image(systemName: "pin.fill")
+                            .font(.system(size: 14))
                             .foregroundColor(.white)
                         Text("置顶区域")
-                            .font(.headline)
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
                         Spacer()
                         
                         HStack(spacing: 2) {
                             Text("持仓数:")
-                                .font(.caption)
+                                .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.8))
                             Text("\(pinnedHoldings.count)")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                                .font(.system(size: 12, weight: .semibold))
                                 .italic()
                                 .foregroundColor(.white)
                             Text("支")
-                                .font(.caption)
+                                .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.8))
                         }
+                        
+                        // 将箭头放在按钮内部，确保整个区域可点击
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 20, height: 20)
                     }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
+                    .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.blue.opacity(0.3)]),
@@ -494,44 +570,26 @@ struct ClientView: View {
                         endPoint: .bottomTrailing
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
+                    .clipShape(RoundedRectangle(cornerRadius: 10)) // 统一圆角半径与SummaryView一致
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2) // 统一阴影与SummaryView一致
                 }
                 .buttonStyle(PlainButtonStyle())
-                
-                // 三角箭头放在渐变条外右侧
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        if isExpanded {
-                            expandedClients.remove("Pinned")
-                        } else {
-                            expandedClients.insert("Pinned")
-                        }
-                    }
-                }) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.leading, 8)
             }
             
-            // 置顶基金卡片区域 - 淡入淡出
+            // 置顶基金卡片区域
             if isExpanded {
                 LazyVStack(spacing: 8) {
                     ForEach(pinnedHoldings) { holding in
-                        // ** 修正问题 2：使用带滑动操作的视图 **
-                        holdingRowWithSwipeActions(for: holding, hideClientInfo: false)
+                        swipeToPinView(for: holding, hideClientInfo: false)
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
     
     // 根据持仓数返回颜色
@@ -706,76 +764,29 @@ struct ClientView: View {
                                 )
                                 .padding(.horizontal, 2)
                             } else {
-                                HStack(spacing: 8) {
-                                    if isQuickNavBarEnabled && !sortedSectionKeys.isEmpty {
-                                        VStack(spacing: 2) {
-                                            ScrollView(.vertical, showsIndicators: false) {
-                                                VStack(spacing: 2) {
-                                                    ForEach(sortedSectionKeys, id: \.self) { titleChar in
-                                                        Button(action: {
-                                                            withAnimation {
-                                                                if titleChar == "★" {
-                                                                    scrollViewProxy?.scrollTo("Pinned", anchor: .top)
-                                                                } else if let firstClient = sectionedClientGroups[titleChar]?.first {
-                                                                    scrollViewProxy?.scrollTo(firstClient.id, anchor: .top)
-                                                                }
-                                                            }
-                                                        }) {
-                                                            Text(String(titleChar))
-                                                                .font(.caption)
-                                                                .fontWeight(.bold)
-                                                                .frame(width: 24, height: 24)
-                                                                .background(Color.gray.opacity(0.2))
-                                                                .cornerRadius(8)
-                                                                .foregroundColor(.primary)
-                                                        }
-                                                        .padding(.vertical, 2)
-                                                    }
-                                                }
-                                                .padding(.vertical, 10)
-                                            }
-                                            .frame(maxHeight: .infinity)
+                                ScrollView {
+                                    LazyVStack(spacing: 0) {
+                                        if !pinnedHoldings.isEmpty {
+                                            pinnedSectionView()
                                         }
-                                        .frame(width: 44)
-                                        .background(Color(.systemGroupedBackground))
-                                        .cornerRadius(10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                                        )
-                                    }
-                                    
-                                    ScrollViewReader { proxy in
-                                        ScrollView {
-                                            LazyVStack(spacing: 0) {
-                                                if !pinnedHoldings.isEmpty {
-                                                    pinnedSectionView()
-                                                        .id("Pinned")
-                                                }
-                                                
-                                                ForEach(sortedSectionKeys.filter { $0 != "★" }, id: \.self) { sectionKey in
-                                                    let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
-                                                    ForEach(clientsForSection) { clientGroup in
-                                                        clientGroupItemView(clientGroup: clientGroup)
-                                                            .id(clientGroup.id)
-                                                    }
-                                                }
+                                        
+                                        ForEach(sortedSectionKeys.filter { $0 != "★" }, id: \.self) { sectionKey in
+                                            let clientsForSection = sectionedClientGroups[sectionKey]?.sorted(by: { localizedStandardCompare($0.clientName, $1.clientName, ascending: true) }) ?? []
+                                            ForEach(clientsForSection) { clientGroup in
+                                                clientGroupItemView(clientGroup: clientGroup)
                                             }
-                                            .padding(.bottom, 20)
-                                        }
-                                        .onAppear {
-                                            scrollViewProxy = proxy
                                         }
                                     }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color(.systemBackground))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                    )
-                                    .padding(.horizontal, 2)
+                                    .padding(.bottom, 20)
                                 }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                                .padding(.horizontal, 2)
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -856,9 +867,6 @@ struct ClientView: View {
             if newValue.isEmpty {
                 expandedClients.removeAll()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QuickNavBarStateChanged"))) { _ in
-            refreshID = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
             refreshID = UUID()
