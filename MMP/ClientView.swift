@@ -716,7 +716,7 @@ struct ClientView: View {
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
                     
-                    // 搜索栏
+                    // 搜索栏 - 修复清除按钮问题
                     if !dataManager.holdings.isEmpty {
                         HStack {
                             Image(systemName: "magnifyingglass")
@@ -725,11 +725,13 @@ struct ClientView: View {
                                 .textFieldStyle(PlainTextFieldStyle())
                             if !searchText.isEmpty {
                                 Button(action: {
+                                    // 修复：确保清除按钮能正常工作
                                     searchText = ""
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding(.horizontal, 12)
@@ -834,6 +836,10 @@ struct ClientView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            // 修复：按照SummaryView的方式添加点击外部收起键盘的手势
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             // 在刷新时禁用页面切换（除了ConfigView）
             .onChange(of: isRefreshing) { oldValue, newValue in
                 if newValue {

@@ -151,7 +151,6 @@ struct HoldingRow: View {
             }
             .padding(.top, 4)
 
-            // 修改：将按钮移动到右下角
             HStack {
                 if !holding.remarks.isEmpty {
                     Text("备注: \(holding.remarks)")
