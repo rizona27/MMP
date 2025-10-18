@@ -1,8 +1,8 @@
 # 一基暴富 - 基金持仓管理工具
 
-https://img.shields.io/badge/Swift-5.0+-orange.svg
-https://img.shields.io/badge/Platform-iOS-blue.svg
-https://img.shields.io/badge/License-GPL--3.0-green.svg
+https://img.shields.io/badge/Swift-5.0+-orange
+https://img.shields.io/badge/Platform-iOS-blue
+[https://img.shields.io/badge/License-GPL%2520v3-green](https://img.shields.io/badge/License-GPL%20v3-green)
 
 一个简单的基金持仓管理工具，为客户和基金管理设计。支持多客户基金持仓跟踪、实时净值查询、收益统计分析等功能。
 
@@ -33,9 +33,7 @@ https://img.shields.io/badge/License-GPL--3.0-green.svg
 - **深色/浅色主题**：支持系统主题切换
 - **实时搜索**：支持自定义快速搜索
 
-
-
-### 使用
+## 📖 使用
 
 1. **导入数据**
    - 进入"设置"页面
@@ -206,13 +204,13 @@ enum ThemeMode: String, CaseIterable {
 
 ## 📄 许可
 
-采用 GPL-3.0 许可证 - 查看 [LICENSE](https://license/) 文件了解详情。
+采用 GPL-3.0 许可证 - 查看 LICENSE 文件了解详情。
 
 ## 🐛 问题反馈
 
 如果您遇到任何问题或有改进建议，请通过以下方式反馈：
 
-1. [创建Issue](https://github.com/your-repo/fund-manager/issues)
+1. 创建Issue
 2. 提供详细的错误描述和重现步骤
 3. 包括设备型号和iOS版本信息
 
