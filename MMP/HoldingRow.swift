@@ -28,13 +28,13 @@ struct HoldingRow: View {
     }
 
     var absoluteReturnPercentage: Double {
-        guard holding.purchaseAmount > 0 else { return 0.0 }
+        guard holding.isValid && holding.purchaseAmount > 0 && holding.currentNav > 0 else { return 0.0 }
         let profit = dataManager.calculateProfit(for: holding)
         return (profit.absolute / holding.purchaseAmount) * 100
     }
 
     var body: some View {
-        let profit = dataManager.calculateProfit(for: holding)
+        let profit = displayProfit
 
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -95,9 +95,9 @@ struct HoldingRow: View {
                 Text("收益: ")
                     .font(.subheadline)
                     .foregroundColor(.primary)
-                Text("\(profit.absolute > 0 ? "+" : "")\(profit.absolute, specifier: "%.2f")元")
+                Text(formattedProfitText(profit.absolute))
                     .font(.subheadline)
-                    .foregroundColor(profit.absolute > 0 ? .red : (profit.absolute < 0 ? .green : .primary))
+                    .foregroundColor(profitColor(profit.absolute))
                 
                 Spacer()
             }
@@ -108,23 +108,23 @@ struct HoldingRow: View {
                     .foregroundColor(.primary)
                 
                 Group {
-                    Text("\(absoluteReturnPercentage, specifier: "%.2f")%")
+                    Text(formattedPercentageText(absoluteReturnPercentage))
                         .font(.subheadline)
-                        .foregroundColor(absoluteReturnPercentage > 0 ? .red : (absoluteReturnPercentage < 0 ? .green : .primary))
+                        .foregroundColor(percentageColor(absoluteReturnPercentage))
                     + Text("[绝对]")
                         .font(.caption)
-                        .foregroundColor(absoluteReturnPercentage > 0 ? .red : (absoluteReturnPercentage < 0 ? .green : .primary))
+                        .foregroundColor(.secondary) 
                     
                     Text(" | ")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text("\(profit.annualized, specifier: "%.2f")%")
+                    Text(formattedPercentageText(profit.annualized))
                         .font(.subheadline)
-                        .foregroundColor(profit.annualized > 0 ? .red : (profit.annualized < 0 ? .green : .primary))
+                        .foregroundColor(percentageColor(profit.annualized))
                     + Text("[年化]")
                         .font(.caption)
-                        .foregroundColor(profit.annualized > 0 ? .red : (profit.annualized < 0 ? .green : .primary))
+                        .foregroundColor(.secondary)
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -208,6 +208,53 @@ struct HoldingRow: View {
         self.onGenerateReport = onGenerateReport
     }
     
+    private var displayProfit: ProfitResult {
+        guard holding.isValid else {
+            return ProfitResult(absolute: 0.0, annualized: 0.0)
+        }
+        return dataManager.calculateProfit(for: holding)
+    }
+
+    private func formattedProfitText(_ profit: Double) -> String {
+        if profit > 0 {
+            return "+\(String(format: "%.2f", profit))元"
+        } else if profit < 0 {
+            return "\(String(format: "%.2f", profit))元"
+        } else {
+            return "0.00元"
+        }
+    }
+
+    private func formattedPercentageText(_ percentage: Double) -> String {
+        if percentage > 0 {
+            return "+\(String(format: "%.2f", percentage))%"
+        } else if percentage < 0 {
+            return "\(String(format: "%.2f", percentage))%"
+        } else {
+            return "0.00%"
+        }
+    }
+
+    private func profitColor(_ profit: Double) -> Color {
+        if profit > 0 {
+            return .red
+        } else if profit < 0 {
+            return .green
+        } else {
+            return .primary
+        }
+    }
+
+    private func percentageColor(_ percentage: Double) -> Color {
+        if percentage > 0 {
+            return .red
+        } else if percentage < 0 {
+            return .green
+        } else {
+            return .primary
+        }
+    }
+    
     private var formattedNavValueAndDate: String {
         let navValue = String(format: "%.4f", holding.currentNav)
         let navDate = Self.dateFormatterMM_DD.string(from: holding.navDate)
@@ -227,12 +274,12 @@ struct HoldingRow: View {
     }
 
     private var reportContent: String {
-        let profit = dataManager.calculateProfit(for: holding)
+        let profit = displayProfit
         let purchaseAmountFormatted = self.purchaseAmountFormatted
         let formattedCurrentNav = String(format: "%.4f", holding.currentNav)
-        let formattedAbsoluteProfit = String(format: "%.2f", profit.absolute)
-        let formattedAnnualizedProfit = String(format: "%.2f", profit.annualized)
-        let formattedAbsoluteReturnPercentage = String(format: "%.2f", self.absoluteReturnPercentage)
+        let formattedAbsoluteProfit = formattedProfitText(profit.absolute)
+        let formattedAnnualizedProfit = formattedPercentageText(profit.annualized)
+        let formattedAbsoluteReturnPercentage = formattedPercentageText(self.absoluteReturnPercentage)
 
         let navDateString = Self.dateFormatterMM_DD.string(from: holding.navDate)
 
@@ -242,9 +289,9 @@ struct HoldingRow: View {
         ├ 持有天数:\(holdingDays)天
         ├ 购买金额:\(purchaseAmountFormatted)
         ├ 最新净值:\(formattedCurrentNav) | \(navDateString)
-        ├ 收益:\(profit.absolute > 0 ? "+" : "")\(formattedAbsoluteProfit)
-        ├ 收益率:\(formattedAnnualizedProfit)%(年化)
-        └ 收益率:\(formattedAbsoluteReturnPercentage)%(绝对)
+        ├ 收益:\(formattedAbsoluteProfit)
+        ├ 收益率:\(formattedAnnualizedProfit)(年化)
+        └ 收益率:\(formattedAbsoluteReturnPercentage)(绝对)
         """
     }
 }

@@ -24,6 +24,7 @@ class UpdateLogViewModel: ObservableObject {
         UpdateLog(version: "Version 1.6.2", description: "统一一览、客户界面、卡片UI。"),
         UpdateLog(version: "Version 1.6.3", description: "去除定位栏、新增编辑模式的隐私开关。"),
         UpdateLog(version: "Version 1.6.4", description: "渐变动画及Toast模块更新。"),
+        UpdateLog(version: "Version 1.6.5", description: "报告和基金展示模块优化。"),
         UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
@@ -65,7 +66,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.6.4      By: rizona.cn@gmail.com")
+                        Text("Version: 1.6.5      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -109,7 +110,7 @@ struct AboutView: View {
                             .foregroundColor(.accentColor)
                             .padding(.bottom, 5)
 
-                        Text("跟踪管理多客户基金持仓，提供最新净值查询、收益统计等功能。\n数据接口暂时优选同花顺((更新时间略早于其他接口)。")
+                        Text("跟踪管理多客户基金持仓，提供最新净值查询、收益统计等功能。")
                             .font(.body)
                             .foregroundColor(.secondary)
 

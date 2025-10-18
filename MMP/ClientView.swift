@@ -276,7 +276,7 @@ struct ClientView: View {
         if !pinnedHoldings.isEmpty {
             let pinnedClientGroup = ClientGroup(
                 id: "Pinned",
-                clientName: "置顶区域",
+                clientName: "置顶分栏",
                 clientID: "",
                 totalAUM: pinnedHoldings.reduce(0.0) { $0 + $1.totalValue },
                 holdings: pinnedHoldings,
@@ -324,6 +324,12 @@ struct ClientView: View {
             let toastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
             toastQueue.addToast(toastMessage, type: .copy)
         }, onGenerateReport: { holding in
+            // 检查是否已获取有效净值数据
+            if !holding.isValid || holding.currentNav <= 0.0001 {
+                toastQueue.addToast("更新数据后可用", type: .outdated, showTime: 2)
+                return
+            }
+            
             let reportContent = generateReportContent(for: holding)
             UIPasteboard.general.string = reportContent
             let toastMessage = "\(reportContent)"
@@ -616,19 +622,19 @@ struct ClientView: View {
                         Image(systemName: "pin.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
-                        Text("置顶区域")
+                        Text("置顶分栏")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
                         Spacer()
                         
                         HStack(spacing: 2) {
-                            Text("持仓数:")
+                            Text("置顶数:")
                                 .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.8))
                             Text("\(pinnedHoldings.count)")
                                 .font(.system(size: 12, weight: .semibold))
                                 .italic()
-                                .foregroundColor(.white)
+                                .foregroundColor(colorForHoldingCount(pinnedHoldings.count))
                             Text("支")
                                 .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.8))
@@ -697,6 +703,13 @@ struct ClientView: View {
                 dataManager.saveData()
                 refreshID = UUID()
                 fundService.addLog("ClientView: 基金 \(holding.fundCode) 切换置顶状态: \(!isPinned)", type: .info)
+                
+                // 如果取消置顶后置顶区域为空，则自动折叠
+                if isPinned && self.pinnedHoldings.isEmpty {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.expandedClients.remove("Pinned")
+                    }
+                }
             }
         }
     }

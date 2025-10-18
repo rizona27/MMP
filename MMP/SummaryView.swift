@@ -46,12 +46,11 @@ struct SummaryView: View {
     @State private var selectedSortKey: SortKey = .none
     @State private var sortOrder: SortOrder = .descending
     @State private var expandedFundCodes: Set<String> = []
-    @State private var refreshStats: (success: Int, fail: Int) = (0, 0)
     @State private var refreshID = UUID()
     @State private var searchText = ""
     @State private var showingNavDateToast = false
     @State private var navDateToastMessage = ""
-    @State private var justRefreshed = false
+    @State private var hasShownInitialToast = false
 
     private let calendar = Calendar.current
     
@@ -68,21 +67,28 @@ struct SummaryView: View {
         }
     }
     
-    private var hasLatestNavDate: Bool {
+    private var hasAnyLatestNavDate: Bool {
         if dataManager.holdings.isEmpty || dataManager.holdings.allSatisfy({ !$0.isValid }) {
             return false
         }
         
-        let previousWorkdayStart = previousWorkday
+        let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
         return dataManager.holdings.contains { holding in
             holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
         }
     }
     
     private var outdatedFunds: [FundHolding] {
-        let previousWorkdayStart = previousWorkday
+        let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
         return dataManager.holdings.filter { holding in
             holding.isValid && !calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
+        }
+    }
+    
+    private var upToDateFunds: [FundHolding] {
+        let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
+        return dataManager.holdings.filter { holding in
+            holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
         }
     }
     
@@ -194,7 +200,7 @@ struct SummaryView: View {
     }
     
     private func getHoldingReturn(for fund: FundHolding) -> Double? {
-        guard fund.purchaseAmount > 0 else { return nil }
+        guard fund.isValid && fund.purchaseAmount > 0 else { return nil }
         return (fund.totalValue - fund.purchaseAmount) / fund.purchaseAmount * 100
     }
 
@@ -250,17 +256,6 @@ struct SummaryView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
-                        
-                        if selectedSortKey != .none {
-                            VStack(alignment: .trailing) {
-                                let valueString = getColumnValue(for: firstFund, keyPath: selectedSortKey.keyPathString)
-                                let numberValue = Double(valueString.replacingOccurrences(of: "%", with: ""))
-                                Text(valueString)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(colorForValue(numberValue))
-                            }
-                            .padding(.horizontal, 6)
-                        }
                     }
                     .padding(.vertical, 6)
                     .padding(.horizontal, 16)
@@ -277,6 +272,18 @@ struct SummaryView: View {
                     .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
+                
+                if selectedSortKey != .none {
+                    VStack(alignment: .trailing) {
+                        let valueString = getColumnValue(for: firstFund, keyPath: selectedSortKey.keyPathString)
+                        let numberValue = Double(valueString.replacingOccurrences(of: "%", with: ""))
+                        Text(valueString)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(colorForValue(numberValue))
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.leading, 8)
+                }
             }
             
             if isExpanded {
@@ -404,9 +411,9 @@ struct SummaryView: View {
                         Spacer()
                     
                         if !dataManager.holdings.isEmpty {
-                            Text(latestNavDateString)
+                            Text(statusText)
                                 .font(.system(size: 14))
-                                .foregroundColor(hasLatestNavDate ? Color(red: 0.4, green: 0.8, blue: 0.4) : .orange)
+                                .foregroundColor(statusColor)
                                 .padding(.trailing, 8)
                         }
                     }
@@ -524,56 +531,17 @@ struct SummaryView: View {
             }
         }
         .onAppear {
-            if justRefreshed {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showingToast = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showingToast = false
-                        justRefreshed = false
-                    }
-                }
-            } else if !hasLatestNavDate && !dataManager.holdings.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showingToast = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingToast = false
-                        }
-                    }
-                }
-            }
+            hasShownInitialToast = false
             
-            NotificationCenter.default.addObserver(forName: Notification.Name("RefreshCompleted"), object: nil, queue: .main) { notification in
-                if let stats = notification.userInfo?["stats"] as? (Int, Int) {
-                    self.refreshStats = stats
-                    self.justRefreshed = true
-                }
-            }
+            checkAndShowOutdatedToast()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
             refreshID = UUID()
+            hasShownInitialToast = false
         }
     }
     
-    private var toastMessage: String {
-        if justRefreshed {
-            if outdatedFunds.isEmpty {
-                return "更新完成"
-            } else {
-                return "待更新\(outdatedFunds.count)条"
-            }
-        } else if !hasLatestNavDate && !dataManager.holdings.isEmpty {
-            return "非最新数据，建议更新"
-        } else {
-            return "非最新数据，建议更新"
-        }
-    }
-    
-    private var latestNavDateString: String {
+    private var statusText: String {
         guard let latestDate = latestNavDate else {
             return "暂无数据"
         }
@@ -582,12 +550,67 @@ struct SummaryView: View {
         formatter.dateFormat = "MM-dd"
         let dateString = formatter.string(from: latestDate)
         
-        if hasLatestNavDate {
+        if hasAnyLatestNavDate {
             return "最新日期: \(dateString)"
         } else {
             let previousWorkdayString = formatter.string(from: previousWorkday)
             return "待更新: \(previousWorkdayString)"
         }
+    }
+    
+    private var statusColor: Color {
+        if hasAnyLatestNavDate {
+            return Color(red: 0.4, green: 0.8, blue: 0.4)
+        } else {
+            return .orange
+        }
+    }
+    
+    private func checkAndShowOutdatedToast() {
+        guard !dataManager.holdings.isEmpty && !outdatedFunds.isEmpty else {
+            return
+        }
+
+        guard !hasShownInitialToast else {
+            return
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showingToast = true
+                hasShownInitialToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showingToast = false
+                }
+            }
+        }
+    }
+    
+    private var toastMessage: String {
+        let outdatedCount = outdatedFunds.count
+        var message = "非最新日期净值：\(outdatedCount)支\n"
+        
+        var uniqueFunds: [String: String] = [:]
+        for fund in outdatedFunds {
+            uniqueFunds[fund.fundCode] = fund.fundName
+        }
+        
+        let displayFunds = Array(uniqueFunds.prefix(5))
+        for (index, (fundCode, fundName)) in displayFunds.enumerated() {
+            let displayName = fundName.count > 6 ? String(fundName.prefix(6)) + "..." : fundName
+            message += "\(displayName)[\(fundCode)]"
+            if index < displayFunds.count - 1 {
+                message += "\n"
+            }
+        }
+
+        if uniqueFunds.count > 5 {
+            message += "\n..."
+        }
+        
+        return message
     }
     
     private func colorForValue(_ value: Double?) -> Color {
@@ -641,9 +664,13 @@ private func combinedClientAndReturnText(funds: [FundHolding], getHoldingReturn:
     for (index, holding) in sortedFunds.enumerated() {
         let clientName = isPrivacyModeEnabled ? processClientName(holding.clientName) : holding.clientName
         var clientText = Text(clientName)
+        
         if let holdingReturn = getHoldingReturn(holding) {
             clientText = clientText + Text("(\(holdingReturn.formattedPercentage))")
                 .foregroundColor(colorForValue(holdingReturn))
+        } else {
+            clientText = clientText + Text("(/)")
+                .foregroundColor(.gray)
         }
     
         if index > 0 {
