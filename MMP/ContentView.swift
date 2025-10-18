@@ -7,18 +7,35 @@ struct ContentView: View {
 
     @State private var showSplash = true
     @State private var selectedTab = 0
-    @State private var splashOpacity: Double = 0.0
     
-    @State private var startPoint = UnitPoint.topLeading
-    @State private var endPoint = UnitPoint.bottomTrailing
-
-    @State private var copyrightGradientStartPoint = UnitPoint.leading
-    @State private var copyrightGradientEndPoint = UnitPoint.trailing
+    // 启动动画状态变量
+    @State private var splashOpacity: Double = 1.0
+    @State private var mainTextOpacity: Double = 0.0
+    @State private var subtitleOpacity: Double = 0.0
+    @State private var copyrightOpacity: Double = 0.0
+    
+    @State private var mainTextOffset: CGFloat = 10.0
+    @State private var subtitleOffset: CGFloat = 8.0
+    
+    // 高光动画状态
+    @State private var highlightPosition: CGFloat = -1.0
+    @State private var highlightOpacity: Double = 0.0
+    
+    // 光晕动画状态
+    @State private var glowScale: CGFloat = 0.7
+    @State private var glowOpacity: Double = 0.0
+    @State private var glowRotation: Double = 0.0
+    @State private var glowOffset: CGSize = CGSize(width: -100, height: -100)
+    
+    // 转场效果状态
+    @State private var splashBlur: CGFloat = 0.0
+    @State private var splashScale: CGFloat = 1.0
 
     @State private var isRefreshLocked = false
 
     var body: some View {
         ZStack {
+            // 主程序界面
             NavigationView {
                 TabView(selection: $selectedTab) {
                     SummaryView()
@@ -60,78 +77,139 @@ struct ContentView: View {
                 .disabled(isRefreshLocked)
             }
             .opacity(showSplash ? 0 : 1)
-            .animation(.easeIn(duration: 1.0), value: showSplash)
+            .animation(.easeIn(duration: 0.6), value: showSplash)
 
             if showSplash {
-                VStack(alignment: .leading, spacing: 8) {
-
-                    Spacer()
-                        .frame(height: 150)
+                ZStack {
+                    // 基础背景
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(hex: "F8F5F0"),
+                                    Color(hex: "F0ECE5"),
+                                    Color(hex: "F8F5F0")
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .edgesIgnoringSafeArea(.all)
                     
-                    Text("Less")
-                        .font(.system(size: 50, weight: .light, design: .serif).italic())
-                        .foregroundColor(Color(hex: "8B0000"))
-                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
-                    Text("is")
-                        .font(.system(size: 35, weight: .light, design: .serif).italic())
-                        .foregroundColor(Color(hex: "8B0000"))
-                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
-                    Text("More.")
-                        .font(.system(size: 70, weight: .heavy, design: .serif).italic())
-                        .foregroundColor(Color(hex: "8B0000"))
-                        .shadow(color: .gray.opacity(0.6), radius: 8, x: 2, y: 8)
-                    Text("Finding Abundance Through Subtraction...")
-                        .font(.system(size: 18, weight: .light).italic())
-                        .foregroundColor(Color(hex: "8B0000").opacity(0.8))
-                        .shadow(color: .gray.opacity(0.6), radius: 6, x: 1, y: 6)
-                        .padding(.top, 25)
+                    // 动态光晕效果
+                    ForEach(0..<2, id: \.self) { index in
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(hex: "E8D5C4").opacity(0.3),
+                                        Color(hex: "F0ECE5").opacity(0.15),
+                                        Color.clear
+                                    ]),
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: 150 + CGFloat(index) * 60
+                                )
+                            )
+                            .frame(
+                                width: 250 + CGFloat(index) * 100,
+                                height: 250 + CGFloat(index) * 100
+                            )
+                            .scaleEffect(glowScale * (1.0 - CGFloat(index) * 0.1))
+                            .opacity(glowOpacity * (1.0 - Double(index) * 0.2))
+                            .rotationEffect(.degrees(glowRotation * Double(index + 1) * 0.3))
+                            .offset(glowOffset)
+                            .blur(radius: 15 + CGFloat(index) * 5)
+                    }
+                    
+                    // 文字内容层
+                    VStack(alignment: .center, spacing: 12) {
+                        Spacer()
+                        
+                        // 主标题
+                        VStack(alignment: .center, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text("Less")
+                                    .font(.system(size: 46, weight: .light, design: .serif))
+                                    .foregroundColor(Color(hex: "5D4037"))
+                                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                                
+                                Text("is")
+                                    .font(.system(size: 32, weight: .light, design: .serif))
+                                    .foregroundColor(Color(hex: "5D4037"))
+                                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                            }
+                            
+                            Text("More.")
+                                .font(.system(size: 60, weight: .semibold, design: .serif))
+                                .foregroundColor(Color(hex: "3E2723"))
+                                .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 2)
+                        }
+                        .opacity(mainTextOpacity)
+                        .offset(y: mainTextOffset)
+                        
+                        // 副标题
+                        Text("Finding Abundance Through Subtraction")
+                            .font(.system(size: 16, weight: .light))
+                            .foregroundColor(Color(hex: "6D4C41").opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 20)
+                            .opacity(subtitleOpacity)
+                            .offset(y: subtitleOffset)
 
-                    Spacer()
+                        Spacer()
 
-                    Text("Copyright©Rizona. All Rights Reserved")
-                        .font(.system(size: 12, weight: .light).italic())
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.bottom, 40)
-                        .foregroundColor(.clear)
+                        // 版权信息
+                        VStack(spacing: 4) {
+                            Text("专注 · 价值")
+                                .font(.system(size: 13, weight: .light))
+                                .foregroundColor(Color(hex: "795548").opacity(0.6))
+                            
+                            Text("Copyright © 2025 Rizona")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(Color(hex: "795548").opacity(0.5))
+                        }
+                        .opacity(copyrightOpacity)
+                        .padding(.bottom, 50)
                         .overlay(
-                            LinearGradient(gradient: Gradient(colors: [Color.blue, Color.red]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
+                            // 高光扫过效果
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color.clear,
+                                            Color.white.opacity(0.4),
+                                            Color.white.opacity(0.6),
+                                            Color.white.opacity(0.4),
+                                            Color.clear
+                                        ]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 80)
+                                .offset(x: highlightPosition * 200)
+                                .opacity(highlightOpacity)
+                                .blendMode(.plusLighter)
                                 .mask(
-                                    Text("Copyright © Rizona. All Rights Reserved")
-                                        .font(.system(size: 12, weight: .light).italic())
+                                    VStack(spacing: 4) {
+                                        Text("专注 · 价值")
+                                            .font(.system(size: 13, weight: .light))
+                                        
+                                        Text("© 2025 Rizona Developed")
+                                            .font(.system(size: 11, weight: .light))
+                                    }
                                 )
                         )
-                        .onAppear {
-                            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                                self.copyrightGradientStartPoint = UnitPoint.trailing
-                                self.copyrightGradientEndPoint = UnitPoint.leading
-                            }
-                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 40)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.leading, 30)
-                .background(
-                    LinearGradient(gradient: Gradient(colors: [Color(hex: "F5F5DC"), Color(hex: "FFFFFF")]), startPoint: startPoint, endPoint: endPoint)
-                )
-                .edgesIgnoringSafeArea(.all)
                 .opacity(splashOpacity)
+                .scaleEffect(splashScale)
+                .blur(radius: splashBlur)
                 .onAppear {
-                    withAnimation(.linear(duration: 5.0).repeatForever(autoreverses: true)) {
-                        self.startPoint = UnitPoint(x: 1.0, y: 0.0)
-                        self.endPoint = UnitPoint(x: 0.0, y: 1.0)
-                    }
-
-                    withAnimation(.easeIn(duration: 1.0)) {
-                        self.splashOpacity = 1.0
-                    }
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        withAnimation(.easeOut(duration: 1.5)) {
-                            self.splashOpacity = 0.0
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            self.showSplash = false
-                        }
-                    }
+                    startNaturalAnimation()
                 }
             }
         }
@@ -140,6 +218,97 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshLockDisabled"))) { _ in
             isRefreshLocked = false
+        }
+    }
+    
+    private func startNaturalAnimation() {
+        // 重置所有状态
+        splashOpacity = 1.0
+        mainTextOpacity = 0.0
+        subtitleOpacity = 0.0
+        copyrightOpacity = 0.0
+        mainTextOffset = 10.0
+        subtitleOffset = 8.0
+        glowScale = 0.7
+        glowOpacity = 0.0
+        glowRotation = 0.0
+        glowOffset = CGSize(width: -100, height: -100)
+        splashBlur = 0.0
+        splashScale = 1.0
+        
+        // 光晕动画
+        withAnimation(.easeOut(duration: 2.5)) {
+            glowScale = 1.4
+            glowOpacity = 0.4
+            glowOffset = CGSize(width: 30, height: 30)
+        }
+        
+        // 光晕旋转
+        withAnimation(.linear(duration: 8.0).repeatForever(autoreverses: false)) {
+            glowRotation = 360
+        }
+        
+        // 主文字淡入和轻微上移
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeOut(duration: 1.2)) {
+                mainTextOpacity = 1.0
+                mainTextOffset = 0.0
+            }
+        }
+        
+        // 副标题延迟淡入
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeOut(duration: 1.0)) {
+                subtitleOpacity = 1.0
+                subtitleOffset = 0.0
+            }
+        }
+        
+        // 版权信息最后淡入
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.easeOut(duration: 0.8)) {
+                copyrightOpacity = 1.0
+            }
+            
+            // 高光扫过动画
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.easeIn(duration: 0.1)) {
+                    highlightOpacity = 1.0
+                }
+                
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    highlightPosition = 1.0
+                }
+                
+                // 高光淡出
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        highlightOpacity = 0.0
+                    }
+                }
+            }
+        }
+        
+        // 整体转场效果 - 使用模糊和缩放淡出
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            // 光晕淡出
+            withAnimation(.easeIn(duration: 0.8)) {
+                glowOpacity = 0.0
+            }
+            
+            // 启动画面转场效果 - 模糊和轻微缩小
+            withAnimation(.easeOut(duration: 1.2)) {
+                splashOpacity = 0.0
+                splashBlur = 8.0
+                splashScale = 0.98
+            }
+            
+            // 延迟一点再切换主界面
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                withAnimation(.easeIn(duration: 0.3)) {
+                    showSplash = false
+                }
+            }
         }
     }
 }
