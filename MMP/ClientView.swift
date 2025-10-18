@@ -63,9 +63,58 @@ struct ClientGroup: Identifiable {
     var pinnedTimestamp: Date?
 }
 
+class ToastQueueManager: ObservableObject {
+    @Published var toasts: [ToastItem] = []
+    private var activeToastIds: Set<String> = []
+    
+    struct ToastItem: Identifiable {
+        let id = UUID()
+        let message: String
+        let type: ToastType
+        var showTime: Double
+    }
+    
+    enum ToastType {
+        case copy, report, refresh, outdated
+    }
+    
+    func addToast(_ message: String, type: ToastType, showTime: Double = 1.5) {
+        // 检查是否已经存在相同的Toast消息
+        let toastId = "\(message)-\(type)"
+        guard !activeToastIds.contains(toastId) else { return }
+        
+        let toast = ToastItem(message: message, type: type, showTime: showTime)
+        
+        // 使用动画添加Toast
+        withAnimation(.easeInOut(duration: 0.3)) {
+            toasts.append(toast)
+        }
+        activeToastIds.insert(toastId)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + showTime) { [weak self] in
+            self?.removeToast(toast.id)
+            self?.activeToastIds.remove(toastId)
+        }
+    }
+    
+    func removeToast(_ id: UUID) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            toasts.removeAll { $0.id == id }
+        }
+    }
+    
+    func removeAll() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            toasts.removeAll()
+        }
+        activeToastIds.removeAll()
+    }
+}
+
 struct ClientView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var fundService: FundService
+    @StateObject private var toastQueue = ToastQueueManager()
     @State private var isRefreshing = false
     
     @Environment(\.colorScheme) var colorScheme
@@ -84,19 +133,17 @@ struct ClientView: View {
     @State private var refreshProgress: (current: Int, total: Int) = (0, 0)
     @State private var currentRefreshingClientName: String = ""
     @State private var currentRefreshingClientID: String = ""
-    @State private var showRefreshCompleteToast = false
     
-    @State private var showCopyToast = false
-    @State private var showReportToast = false
-    @State private var copyToastMessage = ""
-    @State private var reportToastMessage = ""
-
+    @State private var swipedHoldingStates: [UUID: SwipeState] = [:]
+    
     private let maxConcurrentRequests = 3
 
     private let calendar = Calendar.current
-    
-    @State private var swipedHoldingID: UUID?
-    @State private var dragOffset: CGFloat = 0
+
+    private struct SwipeState {
+        var isSwiped: Bool = false
+        var dragOffset: CGFloat = 0
+    }
 
     private static let dateFormatterYY_MM_DD: DateFormatter = {
         let formatter = DateFormatter()
@@ -165,10 +212,6 @@ struct ClientView: View {
             return "待更新: \(previousWorkdayString)"
         }
     }
-    
-    @State private var showingNavDateToast = false
-    @State private var navDateToastMessage = ""
-    @State private var showingOutdatedDataToast = false
 
     private func localizedStandardCompare(_ s1: String, _ s2: String, ascending: Bool) -> Bool {
         if ascending {
@@ -278,27 +321,13 @@ struct ClientView: View {
         
         return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo,
                          onCopyClientID: { message in
-            copyToastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showCopyToast = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showCopyToast = false
-                }
-            }
+            let toastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
+            toastQueue.addToast(toastMessage, type: .copy)
         }, onGenerateReport: { holding in
             let reportContent = generateReportContent(for: holding)
             UIPasteboard.general.string = reportContent
-            reportToastMessage = "\(reportContent)"
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showReportToast = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showReportToast = false
-                }
-            }
+            let toastMessage = "\(reportContent)"
+            toastQueue.addToast(toastMessage, type: .report, showTime: 3)
         })
             .environmentObject(dataManager)
             .environmentObject(fundService)
@@ -358,16 +387,18 @@ struct ClientView: View {
     }
     
     private func swipeToPinView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
-        let isSwiped = swipedHoldingID == holding.id
+        let swipeStateBinding = Binding(
+            get: { self.swipedHoldingStates[holding.id, default: SwipeState()] },
+            set: { self.swipedHoldingStates[holding.id] = $0 }
+        )
         
         return ZStack(alignment: .leading) {
-            if isSwiped {
+            if swipeStateBinding.wrappedValue.isSwiped {
                 HStack {
                     Button(action: {
                         togglePin(for: holding)
-                        withAnimation(.spring()) {
-                            dragOffset = 0
-                            swipedHoldingID = nil
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            swipeStateBinding.wrappedValue = SwipeState(isSwiped: false, dragOffset: 0)
                         }
                     }) {
                         VStack(spacing: 2) {
@@ -411,13 +442,13 @@ struct ClientView: View {
             }
             
             holdingRowView(for: holding, hideClientInfo: hideClientInfo)
-                .offset(x: isSwiped ? dragOffset : 0)
-                .gesture(
-                    DragGesture()
+                .offset(x: swipeStateBinding.wrappedValue.isSwiped ? swipeStateBinding.wrappedValue.dragOffset : 0)
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 10)
                         .onChanged { value in
                             if value.translation.width > 0 {
-                                dragOffset = min(value.translation.width, 60)
-                                swipedHoldingID = holding.id
+                                let newOffset = min(value.translation.width, 60)
+                                swipeStateBinding.wrappedValue = SwipeState(isSwiped: true, dragOffset: newOffset)
                             }
                         }
                         .onEnded { value in
@@ -425,13 +456,13 @@ struct ClientView: View {
                                 togglePin(for: holding)
                             }
                             
-                            withAnimation(.spring()) {
-                                dragOffset = 0
-                                swipedHoldingID = nil
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                swipeStateBinding.wrappedValue = SwipeState(isSwiped: false, dragOffset: 0)
                             }
                         }
                 )
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: swipeStateBinding.wrappedValue.isSwiped)
     }
 
     @ViewBuilder
@@ -583,8 +614,8 @@ struct ClientView: View {
                 }) {
                     HStack {
                         Image(systemName: "pin.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
                         Text("置顶区域")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
@@ -832,59 +863,43 @@ struct ClientView: View {
                 .background(Color(.systemGroupedBackground))
                 .allowsHitTesting(!isRefreshing)
                 
-                if showRefreshCompleteToast || showingOutdatedDataToast || showCopyToast || showReportToast {
+                // Toast显示区域 - 使用与SummaryView完全相同的效果
+                if !toastQueue.toasts.isEmpty {
                     VStack {
                         Spacer()
                         
-                        if showRefreshCompleteToast {
-                            ToastView(message: "更新完成", isShowing: $showRefreshCompleteToast)
-                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                        }
-                        
-                        if showingOutdatedDataToast {
-                            ToastView(message: "非最新数据，建议更新", isShowing: $showingOutdatedDataToast)
-                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                        }
-                        
-                        if showCopyToast {
-                            ToastView(message: copyToastMessage, isShowing: $showCopyToast)
-                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                        }
-                        
-                        if showReportToast {
-                            VStack(spacing: 4) {
-                                ScrollView {
-                                    Text(reportToastMessage)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.primary)
-                                        .multilineTextAlignment(.leading)
-                                        .padding(.horizontal, 4)
-                                }
-                                .frame(maxHeight: 150)
-                                
-                                Text("以上报告已复制到剪贴板")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                    .padding(.top, 2)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemGray6))
-                                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                            .onAppear {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                        showReportToast = false
+                        ForEach(toastQueue.toasts) { toast in
+                            if toast.type == .report {
+                                VStack(spacing: 4) {
+                                    ScrollView {
+                                        Text(toast.message)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.primary)
+                                            .multilineTextAlignment(.leading)
+                                            .padding(.horizontal, 4)
                                     }
+                                    .frame(maxHeight: 150)
+                                    
+                                    Text("以上报告已复制到剪贴板")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 2)
                                 }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(.systemGray6))
+                                        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                            } else {
+                                ToastView(message: toast.message, isShowing: .constant(true))
+                                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
                             }
                         }
                         
@@ -937,14 +952,7 @@ struct ClientView: View {
         .onAppear {
             if !hasLatestNavDate && !dataManager.holdings.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showingOutdatedDataToast = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingOutdatedDataToast = false
-                        }
-                    }
+                    toastQueue.addToast("非最新数据，建议更新", type: .outdated)
                 }
             }
         }
@@ -1032,15 +1040,7 @@ struct ClientView: View {
         
         NotificationCenter.default.post(name: Notification.Name("RefreshLockDisabled"), object: nil)
         
-        withAnimation(.easeInOut(duration: 0.3)) {
-            self.showRefreshCompleteToast = true
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                self.showRefreshCompleteToast = false
-            }
-        }
+        toastQueue.addToast("更新完成", type: .refresh)
     }
     
     private func fetchHoldingWithRetry(holding: FundHolding) async -> (UUID, FundHolding?) {
