@@ -1,8 +1,8 @@
 # 一基暴富 - 基金持仓管理工具
 
-![Swift](https://img.shields.io/badge/Swift-5.0+-orange)
-![Platform](https://img.shields.io/badge/Platform-iOS-blue)
-![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-blue)
+https://img.shields.io/badge/Swift-5.0+-orange
+https://img.shields.io/badge/Platform-iOS-blue
+https://img.shields.io/badge/License-GPL%2520v3-green
 
 一个简单的基金持仓管理工具，为客户和基金管理设计。支持多客户基金持仓跟踪、实时净值查询、收益统计分析等功能。
 
