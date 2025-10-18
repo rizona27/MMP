@@ -297,7 +297,6 @@ struct ConfigView: View {
     }
 
     func onAppear() {
-        // 移除定位栏状态变更通知
     }
     
     func onDisappear() {
@@ -370,7 +369,6 @@ struct ConfigView: View {
                         }
                         .padding(.horizontal, 8)
 
-                        // 关于卡片 - 调整为一半大小并与其他卡片对齐
                         HStack(spacing: 12) {
                             CustomCardView(
                                 title: "关于",
@@ -384,10 +382,9 @@ struct ConfigView: View {
                             ) { _ in EmptyView() }
                             .frame(maxWidth: .infinity)
                             
-                            // 添加一个空的占位卡片以保持对齐
                             Color.clear
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 100) // 与其他卡片相同高度
+                                .frame(height: 100) 
                         }
                         .padding(.horizontal, 8)
 

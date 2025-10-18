@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var copyrightGradientStartPoint = UnitPoint.leading
     @State private var copyrightGradientEndPoint = UnitPoint.trailing
 
+    @State private var isRefreshLocked = false
+
     var body: some View {
         ZStack {
             NavigationView {
@@ -55,6 +57,7 @@ struct ContentView: View {
                         .environmentObject(dataManager)
                         .environmentObject(fundService)
                 }
+                .disabled(isRefreshLocked)
             }
             .opacity(showSplash ? 0 : 1)
             .animation(.easeIn(duration: 1.0), value: showSplash)
@@ -88,7 +91,7 @@ struct ContentView: View {
                     Text("Copyright©Rizona. All Rights Reserved")
                         .font(.system(size: 12, weight: .light).italic())
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.bottom, 40) 
+                        .padding(.bottom, 40)
                         .foregroundColor(.clear)
                         .overlay(
                             LinearGradient(gradient: Gradient(colors: [Color.blue, Color.red]), startPoint: copyrightGradientStartPoint, endPoint: copyrightGradientEndPoint)
@@ -131,6 +134,12 @@ struct ContentView: View {
                     }
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshLockEnabled"))) { _ in
+            isRefreshLocked = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshLockDisabled"))) { _ in
+            isRefreshLocked = false
         }
     }
 }

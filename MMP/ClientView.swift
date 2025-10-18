@@ -1,8 +1,6 @@
 import SwiftUI
 import Foundation
 
-// MARK: - Extensions (保持不变)
-
 extension String {
     func morandiColor() -> Color {
         var hash = 0
@@ -55,8 +53,6 @@ extension Date {
     }
 }
 
-// MARK: - Structs (保持不变)
-
 struct ClientGroup: Identifiable {
     let id: String
     let clientName: String
@@ -90,7 +86,6 @@ struct ClientView: View {
     @State private var currentRefreshingClientID: String = ""
     @State private var showRefreshCompleteToast = false
     
-    // 新增：复制和报告Toast状态
     @State private var showCopyToast = false
     @State private var showReportToast = false
     @State private var copyToastMessage = ""
@@ -100,11 +95,9 @@ struct ClientView: View {
 
     private let calendar = Calendar.current
     
-    // 滑动置顶相关状态
     @State private var swipedHoldingID: UUID?
     @State private var dragOffset: CGFloat = 0
-    
-    // 日期格式化器
+
     private static let dateFormatterYY_MM_DD: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yy-MM-dd"
@@ -116,26 +109,21 @@ struct ClientView: View {
         formatter.dateFormat = "MM-dd"
         return formatter
     }()
-    
-    // 获取前一个工作日
+
     private var previousWorkday: Date {
         let today = Date()
         var date = calendar.startOfDay(for: today)
-        
-        // 循环找到前一个工作日（周一到周五）
+
         while true {
             date = calendar.date(byAdding: .day, value: -1, to: date) ?? date
             let weekday = calendar.component(.weekday, from: date)
-            // 1: Sunday, 7: Saturday, 2-6: Monday to Friday
             if weekday >= 2 && weekday <= 6 {
                 return date
             }
         }
     }
     
-    // 检查是否有基金净值日期符合前一个工作日
     private var hasLatestNavDate: Bool {
-        // 如果没有持仓数据，或者所有基金都是无效的，返回false
         if dataManager.holdings.isEmpty || dataManager.holdings.allSatisfy({ !$0.isValid }) {
             return false
         }
@@ -146,7 +134,6 @@ struct ClientView: View {
         }
     }
     
-    // 获取不是最新净值的客户列表
     private var outdatedClients: [String] {
         let previousWorkdayStart = previousWorkday
         let outdatedHoldings = dataManager.holdings.filter { holding in
@@ -154,8 +141,7 @@ struct ClientView: View {
         }
         return Array(Set(outdatedHoldings.map { $0.clientName }))
     }
-    
-    // 获取最新净值日期
+
     private var latestNavDate: Date? {
         dataManager.holdings
             .filter { $0.isValid && $0.navDate <= Date() }
@@ -175,7 +161,6 @@ struct ClientView: View {
         if hasLatestNavDate {
             return "最新日期: \(dateString)"
         } else {
-            // 显示前一个工作日的日期
             let previousWorkdayString = formatter.string(from: previousWorkday)
             return "待更新: \(previousWorkdayString)"
         }
@@ -293,7 +278,6 @@ struct ClientView: View {
         
         return HoldingRow(holding: displayHolding, hideClientInfo: hideClientInfo,
                          onCopyClientID: { message in
-            // 修改复制客户号的Toast格式
             copyToastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
             withAnimation(.easeInOut(duration: 0.3)) {
                 showCopyToast = true
@@ -306,7 +290,6 @@ struct ClientView: View {
         }, onGenerateReport: { holding in
             let reportContent = generateReportContent(for: holding)
             UIPasteboard.general.string = reportContent
-            // 修改报告Toast格式，直接显示报告内容
             reportToastMessage = "\(reportContent)"
             withAnimation(.easeInOut(duration: 0.3)) {
                 showReportToast = true
@@ -325,15 +308,12 @@ struct ClientView: View {
         if name.count <= 1 {
             return name
         } else if name.count == 2 {
-            // 两个字的名字：显示第一个字 + "*"
             return String(name.prefix(1)) + "*"
         } else {
-            // 三个字及以上的名字：显示第一个字 + "*" + 最后一个字
             return String(name.prefix(1)) + "*" + String(name.suffix(1))
         }
     }
     
-    // 生成报告内容 - 使用HoldingRow中的格式
     private func generateReportContent(for holding: FundHolding) -> String {
         let profit = dataManager.calculateProfit(for: holding)
         let holdingDays = calculateHoldingDays(for: holding)
@@ -358,7 +338,6 @@ struct ClientView: View {
         """
     }
     
-    // 计算持有天数
     private func calculateHoldingDays(for holding: FundHolding) -> Int {
         let endDate = holding.navDate
         let calendar = Calendar.current
@@ -366,7 +345,6 @@ struct ClientView: View {
         return (components.day ?? 0) + 1
     }
     
-    // 格式化购买金额
     private func formatPurchaseAmount(_ amount: Double) -> String {
         var formattedString: String
         if amount >= 10000 && amount.truncatingRemainder(dividingBy: 10000) == 0 {
@@ -379,12 +357,10 @@ struct ClientView: View {
         return formattedString
     }
     
-    // 自定义滑动置顶视图 - 优化按钮尺寸和文字排列
     private func swipeToPinView(for holding: FundHolding, hideClientInfo: Bool) -> some View {
         let isSwiped = swipedHoldingID == holding.id
         
         return ZStack(alignment: .leading) {
-            // 背景置顶按钮 - 优化尺寸和文字排列
             if isSwiped {
                 HStack {
                     Button(action: {
@@ -400,7 +376,6 @@ struct ClientView: View {
                                 .foregroundColor(.white)
                             
                             if holding.isPinned {
-                                // 取消置顶 - 竖直排列，一字一行
                                 VStack(spacing: 0) {
                                     Text("取")
                                         .font(.system(size: 10, weight: .medium))
@@ -417,7 +392,6 @@ struct ClientView: View {
                                 }
                                 .lineLimit(1)
                             } else {
-                                // 置顶 - 竖直排列
                                 Text("置\n顶")
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(.white)
@@ -426,7 +400,7 @@ struct ClientView: View {
                             }
                         }
                         .frame(width: 50)
-                        .frame(maxHeight: .infinity) // 与基金卡片相同高度
+                        .frame(maxHeight: .infinity)
                         .background(holding.isPinned ? Color.orange : Color.blue)
                         .cornerRadius(6)
                     }
@@ -436,25 +410,21 @@ struct ClientView: View {
                 }
             }
             
-            // 基金卡片
             holdingRowView(for: holding, hideClientInfo: hideClientInfo)
                 .offset(x: isSwiped ? dragOffset : 0)
                 .gesture(
                     DragGesture()
                         .onChanged { value in
-                            // 只允许从左向右滑动
                             if value.translation.width > 0 {
                                 dragOffset = min(value.translation.width, 60)
                                 swipedHoldingID = holding.id
                             }
                         }
                         .onEnded { value in
-                            // 如果滑动超过阈值，触发置顶操作
                             if value.translation.width > 40 {
                                 togglePin(for: holding)
                             }
                             
-                            // 恢复位置
                             withAnimation(.spring()) {
                                 dragOffset = 0
                                 swipedHoldingID = nil
@@ -484,7 +454,6 @@ struct ClientView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // 使用ScrollView + LazyVStack，配合自定义滑动手势
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(searchResults.prefix(loadedSearchResultCount)) { holding in
@@ -514,13 +483,11 @@ struct ClientView: View {
         .allowsHitTesting(!isRefreshing)
     }
 
-    // 客户组视图 - 统一姓名栏高度与SummaryView一致
     private func clientGroupItemView(clientGroup: ClientGroup) -> some View {
         let baseColor = clientGroup.id.morandiColor()
         let isExpanded = expandedClients.contains(clientGroup.id)
         
         return VStack(spacing: 0) {
-            // 客户组标题 - 统一高度
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -562,8 +529,8 @@ struct ClientView: View {
                                 .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                         }
                     }
-                    .padding(.vertical, 6) // 统一垂直内边距与SummaryView一致
-                    .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         LinearGradient(
@@ -573,13 +540,12 @@ struct ClientView: View {
                         )
                     )
                     .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) // 统一圆角半径与SummaryView一致
-                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2) // 统一阴影与SummaryView一致
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             
-            // 基金卡片区域
             if isExpanded {
                 LazyVStack(spacing: 8) {
                     ForEach(clientGroup.holdings.prefix(loadedGroupedClientCount)) { holding in
@@ -601,12 +567,10 @@ struct ClientView: View {
         .padding(.vertical, 6)
     }
     
-    // 置顶区域视图 - 统一姓名栏高度与SummaryView一致
     private func pinnedSectionView() -> some View {
         let isExpanded = expandedClients.contains("Pinned")
         
         return VStack(spacing: 0) {
-            // 置顶区域标题 - 统一高度
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -639,8 +603,8 @@ struct ClientView: View {
                                 .foregroundColor(.white.opacity(0.8))
                         }
                     }
-                    .padding(.vertical, 8) // 统一垂直内边距与SummaryView一致
-                    .padding(.horizontal, 16) // 统一水平内边距与SummaryView一致
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.blue.opacity(0.3)]),
@@ -648,13 +612,12 @@ struct ClientView: View {
                         endPoint: .bottomTrailing
                         )
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 10)) // 统一圆角半径与SummaryView一致
-                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2) // 统一阴影与SummaryView一致
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             
-            // 置顶基金卡片区域
             if isExpanded {
                 LazyVStack(spacing: 8) {
                     ForEach(pinnedHoldings) { holding in
@@ -670,7 +633,6 @@ struct ClientView: View {
         .padding(.vertical, 6)
     }
     
-    // 根据持仓数返回颜色
     private func colorForHoldingCount(_ count: Int) -> Color {
         if count == 1 {
             return .yellow
@@ -698,13 +660,11 @@ struct ClientView: View {
     private func togglePin(for holding: FundHolding) {
         if let index = dataManager.holdings.firstIndex(where: { $0.id == holding.id }) {
             let isPinned = dataManager.holdings[index].isPinned
-            // 确保更新操作在主线程
             DispatchQueue.main.async {
                 dataManager.holdings[index].isPinned.toggle()
-                // 如果置顶，设置时间戳；如果取消置顶，设置为 nil
                 dataManager.holdings[index].pinnedTimestamp = isPinned ? nil : Date()
                 dataManager.saveData()
-                refreshID = UUID() // 强制视图刷新以更新排序和 UI
+                refreshID = UUID()
                 fundService.addLog("ClientView: 基金 \(holding.fundCode) 切换置顶状态: \(!isPinned)", type: .info)
             }
         }
@@ -714,7 +674,6 @@ struct ClientView: View {
         NavigationView {
             ZStack {
                 VStack(spacing: 0) {
-                    // 工具栏
                     HStack {
                         Button(action: {
                             toggleAllCards()
@@ -751,8 +710,26 @@ struct ClientView: View {
                     
                         Spacer()
                     
-                        // 右上角文字显示 - 修改为"点击图标刷新"
-                        if !isRefreshing {
+                        if isRefreshing {
+                            HStack(spacing: 6) {
+                                if !currentRefreshingClientName.isEmpty {
+                                    let displayClientName = isPrivacyModeEnabled ? processClientName(currentRefreshingClientName) : currentRefreshingClientName
+                                    Text("\(displayClientName)")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                if !currentRefreshingClientID.isEmpty {
+                                    Text("[\(currentRefreshingClientID)]")
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text("\(refreshProgress.current)/\(refreshProgress.total)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.trailing, 8)
+                        } else {
                             if dataManager.holdings.isEmpty {
                                 Text("请导入信息")
                                     .font(.system(size: 14))
@@ -770,31 +747,11 @@ struct ClientView: View {
                                     .padding(.trailing, 8)
                             }
                         }
-                        
-                        if isRefreshing {
-                            HStack(spacing: 6) {
-                                if !currentRefreshingClientName.isEmpty {
-                                    let displayClientName = isPrivacyModeEnabled ? processClientName(currentRefreshingClientName) : currentRefreshingClientName
-                                    Text("\(displayClientName)[\(currentRefreshingClientID)]")
-                                        .font(.caption)
-                                        .foregroundColor(.primary)
-                                } else if !currentRefreshingClientID.isEmpty {
-                                    Text("[\(currentRefreshingClientID)]")
-                                        .font(.caption)
-                                        .foregroundColor(.primary)
-                                }
-                                
-                                Text("\(refreshProgress.current)/\(refreshProgress.total)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                            }
-                        }
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                     .background(Color(.systemGroupedBackground))
                     
-                    // 搜索栏 - 修复清除按钮问题
                     if !dataManager.holdings.isEmpty {
                         HStack {
                             Image(systemName: "magnifyingglass")
@@ -803,7 +760,6 @@ struct ClientView: View {
                                 .textFieldStyle(PlainTextFieldStyle())
                             if !searchText.isEmpty {
                                 Button(action: {
-                                    // 修复：确保清除按钮能正常工作
                                     searchText = ""
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
@@ -876,113 +832,114 @@ struct ClientView: View {
                 .background(Color(.systemGroupedBackground))
                 .allowsHitTesting(!isRefreshing)
                 
-                // Toast视图 - 添加淡入淡出动画
-                VStack {
-                    Spacer()
-                        .frame(height: 180)
-                    
-                    if showRefreshCompleteToast {
-                        ToastView(message: "更新完成", isShowing: $showRefreshCompleteToast)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                    
-                    if showingOutdatedDataToast {
-                        ToastView(message: "非最新数据，建议更新", isShowing: $showingOutdatedDataToast)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                    
-                    // 新增：复制和报告Toast
-                    if showCopyToast {
-                        ToastView(message: copyToastMessage, isShowing: $showCopyToast)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                    
-                    if showReportToast {
-                        // 报告Toast使用多行显示，去除"报告内容"标题，减少空白行
-                        VStack(spacing: 4) { // 减少spacing从8到4
-                            ScrollView {
-                                Text(reportToastMessage)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.primary)
-                                    .multilineTextAlignment(.leading)
-                                    .padding(.horizontal, 4)
-                            }
-                            .frame(maxHeight: 150)
-                            
-                            Text("以上报告已复制到剪贴板")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 2) // 添加小量顶部间距
+                if showRefreshCompleteToast || showingOutdatedDataToast || showCopyToast || showReportToast {
+                    VStack {
+                        Spacer()
+                        
+                        if showRefreshCompleteToast {
+                            ToastView(message: "更新完成", isShowing: $showRefreshCompleteToast)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10) // 减少垂直内边距
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray6))
-                                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                )
-                        )
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                    showReportToast = false
+                        
+                        if showingOutdatedDataToast {
+                            ToastView(message: "非最新数据，建议更新", isShowing: $showingOutdatedDataToast)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        }
+                        
+                        if showCopyToast {
+                            ToastView(message: copyToastMessage, isShowing: $showCopyToast)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        }
+                        
+                        if showReportToast {
+                            VStack(spacing: 4) {
+                                ScrollView {
+                                    Text(reportToastMessage)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.primary)
+                                        .multilineTextAlignment(.leading)
+                                        .padding(.horizontal, 4)
+                                }
+                                .frame(maxHeight: 150)
+                                
+                                Text("以上报告已复制到剪贴板")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 2)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemGray6))
+                                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                    )
+                            )
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        showReportToast = false
+                                    }
                                 }
                             }
                         }
+                        
+                        Spacer()
                     }
-                    
-                    Spacer()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .zIndex(998)
                 }
-                .animation(.easeInOut(duration: 0.3), value: showRefreshCompleteToast)
-                .animation(.easeInOut(duration: 0.3), value: showingOutdatedDataToast)
-                .animation(.easeInOut(duration: 0.3), value: showCopyToast)
-                .animation(.easeInOut(duration: 0.3), value: showReportToast)
                 
-                // 刷新中提示 - 添加淡入淡出动画
                 if isRefreshing {
-                    Color.black.opacity(0.01)
+                    Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
-                    
+                        .allowsHitTesting(true)
+                        .zIndex(999)
+
                     VStack {
                         Spacer()
-                        ToastView(message: "更新中...", isShowing: $isRefreshing)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.3)
+                                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                            
+                            Text("更新中...")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 6)
+                        )
+                        .padding(.horizontal, 40)
+                        
                         Spacer()
                     }
-                    .zIndex(999)
-                    .animation(.easeInOut(duration: 0.3), value: isRefreshing)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .zIndex(1000)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            // 修复：按照SummaryView的方式添加点击外部收起键盘的手势
             .onTapGesture {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
-            // 在刷新时禁用页面切换（除了ConfigView）
-            .onChange(of: isRefreshing) { oldValue, newValue in
-                if newValue {
-                    // 发送通知，告诉主TabView锁定页面切换
-                    NotificationCenter.default.post(name: Notification.Name("RefreshLockEnabled"), object: nil)
-                } else {
-                    // 发送通知，告诉主TabView解锁页面切换
-                    NotificationCenter.default.post(name: Notification.Name("RefreshLockDisabled"), object: nil)
-                }
-            }
         }
         .onAppear {
-            // 页面出现时检查是否需要显示非最新数据提示
             if !hasLatestNavDate && !dataManager.holdings.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showingOutdatedDataToast = true
                     }
-                    // 1.5秒后自动隐藏
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showingOutdatedDataToast = false
@@ -1010,6 +967,7 @@ struct ClientView: View {
             currentRefreshingClientName = ""
             currentRefreshingClientID = ""
             NotificationCenter.default.post(name: Notification.Name("RefreshStarted"), object: nil)
+            NotificationCenter.default.post(name: Notification.Name("RefreshLockEnabled"), object: nil)
         }
         
         fundService.addLog("ClientView: 开始刷新所有基金信息...", type: .info)
@@ -1018,16 +976,7 @@ struct ClientView: View {
         
         if totalCount == 0 {
             await MainActor.run {
-                isRefreshing = false
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showRefreshCompleteToast = true
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showRefreshCompleteToast = false
-                    }
-                }
+                completeRefresh()
             }
             return
         }
@@ -1066,25 +1015,31 @@ struct ClientView: View {
             }
             
             dataManager.saveData()
+            completeRefresh()
             
-            self.isRefreshing = false
-            self.currentRefreshingClientName = ""
-            self.currentRefreshingClientID = ""
-            withAnimation(.easeInOut(duration: 0.3)) {
-                self.showRefreshCompleteToast = true
-            }
-
             let stats = (success: self.refreshProgress.current, fail: totalCount - self.refreshProgress.current)
             NotificationCenter.default.post(name: Notification.Name("RefreshCompleted"), object: nil, userInfo: ["stats": stats])
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self.showRefreshCompleteToast = false
-                }
-            }
-
             NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
             fundService.addLog("ClientView: 所有基金信息刷新完成。", type: .info)
+        }
+    }
+    
+    private func completeRefresh() {
+        self.isRefreshing = false
+        self.currentRefreshingClientName = ""
+        self.currentRefreshingClientID = ""
+        
+        NotificationCenter.default.post(name: Notification.Name("RefreshLockDisabled"), object: nil)
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            self.showRefreshCompleteToast = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.showRefreshCompleteToast = false
+            }
         }
     }
     

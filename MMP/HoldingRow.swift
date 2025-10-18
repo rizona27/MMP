@@ -7,10 +7,6 @@ struct HoldingRow: View {
     let hideClientInfo: Bool
     let onCopyClientID: ((String) -> Void)?
     let onGenerateReport: ((FundHolding) -> Void)?
-    
-    // 移除原有的状态管理
-    // @State private var showCopyConfirm = false
-    // @State private var copiedText = ""
 
     private static let dateFormatterYY_MM_DD: DateFormatter = {
         let formatter = DateFormatter()
@@ -54,7 +50,6 @@ struct HoldingRow: View {
                     .minimumScaleFactor(0.7)
                     .onLongPressGesture {
                         UIPasteboard.general.string = holding.fundCode
-                        // 通过回调通知外部显示Toast
                         onCopyClientID?("基金代码已复制: \(holding.fundCode)")
                     }
 
@@ -168,7 +163,6 @@ struct HoldingRow: View {
                 Button(action: {
                     if !holding.clientID.isEmpty {
                         UIPasteboard.general.string = holding.clientID
-                        // 通过回调通知外部显示Toast
                         onCopyClientID?("客户号已复制到剪贴板")
                     }
                 }) {
@@ -180,7 +174,6 @@ struct HoldingRow: View {
                 .disabled(holding.clientID.isEmpty)
                 
                 Button("报告") {
-                    // 通过回调通知外部显示报告内容
                     onGenerateReport?(holding)
                 }
                 .font(.caption)
@@ -195,10 +188,6 @@ struct HoldingRow: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
-        // 移除原有的Alert
-        // .alert(isPresented: $showCopyConfirm) {
-        //     Alert(title: Text(copiedText), dismissButton: .default(Text("好的")))
-        // }
         .swipeActions(edge: .leading) {
             Button {
                 dataManager.togglePinStatus(forHoldingId: holding.id)
@@ -209,7 +198,6 @@ struct HoldingRow: View {
         }
     }
     
-    // 初始化方法，提供默认值以便向后兼容
     init(holding: FundHolding,
          hideClientInfo: Bool = false,
          onCopyClientID: ((String) -> Void)? = nil,

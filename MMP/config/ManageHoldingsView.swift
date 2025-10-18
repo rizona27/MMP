@@ -57,7 +57,7 @@ struct ManageHoldingsView: View {
     }
 
     var body: some View {
-        NavigationView { // 改为 NavigationView 而不是 NavigationStack
+        NavigationView {
             contentView
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -74,7 +74,7 @@ struct ManageHoldingsView: View {
                     }
                 }
         }
-        .navigationViewStyle(.stack) // 确保使用堆栈样式
+        .navigationViewStyle(.stack) 
         .sheet(item: $selectedHolding) { holdingToEdit in
             EditHoldingView(holding: holdingToEdit) { updatedHolding in
                 dataManager.updateHolding(updatedHolding)
@@ -240,7 +240,6 @@ struct ManageHoldingsView: View {
         let displayClientName = isPrivacyModeEnabled ? processClientName(clientGroup.clientName) : clientGroup.clientName
         
         return VStack(spacing: 0) {
-            // 客户组标题 - 统一高度和样式
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -262,7 +261,6 @@ struct ManageHoldingsView: View {
                         
                         Spacer()
                         
-                        // 恢复为批量改名和批量删除按钮
                         Button("批量改名") {
                             clientToRename = clientGroup
                             newClientName = clientGroup.clientName
@@ -283,8 +281,8 @@ struct ManageHoldingsView: View {
                         .foregroundColor(colorScheme == .dark ? Color.red.opacity(0.8) : Color.red)
                         .buttonStyle(.plain)
                     }
-                    .padding(.vertical, 6) // 统一垂直内边距
-                    .padding(.horizontal, 16) // 统一水平内边距
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         LinearGradient(
@@ -294,8 +292,8 @@ struct ManageHoldingsView: View {
                         )
                     )
                     .background(colorScheme == .dark ? Color(.secondarySystemGroupedBackground) : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) // 统一圆角半径
-                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2) // 统一阴影
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -306,10 +304,8 @@ struct ManageHoldingsView: View {
         if name.count <= 1 {
             return name
         } else if name.count == 2 {
-            // 两个字的名字：显示第一个字 + "*"
             return String(name.prefix(1)) + "*"
         } else {
-            // 三个字及以上的名字：显示第一个字 + "*" + 最后一个字
             return String(name.prefix(1)) + "*" + String(name.suffix(1))
         }
     }
@@ -324,10 +320,9 @@ struct HoldingRowForManagement: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(holding.fundName) (\(holding.fundCode))")
                     .font(.headline)
-                // 移除了客户信息行
                 Text("购买金额: \(holding.purchaseAmount, specifier: "%.2f")元")
                     .font(.caption)
-                Text("购买份额: \(holding.purchaseShares, specifier: "%.2f")份") // 修改为保留2位小数
+                Text("购买份额: \(holding.purchaseShares, specifier: "%.2f")份")
                     .font(.caption)
                 Text("购买日期: \(holding.purchaseDate, formatter: DateFormatter.shortDate)")
                     .font(.caption)
@@ -337,7 +332,7 @@ struct HoldingRowForManagement: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(.leading, 16) // 添加左边距与姓名栏对齐
+            .padding(.leading, 16)
             Spacer()
             Button(action: onEdit) {
                 Text("编辑")
@@ -345,7 +340,7 @@ struct HoldingRowForManagement: View {
                     .foregroundColor(.blue)
             }
             .buttonStyle(.borderless)
-            .padding(.trailing, 16) // 添加右边距
+            .padding(.trailing, 16)
         }
         .padding(.vertical, 8)
         .background(Color(uiColor: .secondarySystemGroupedBackground))

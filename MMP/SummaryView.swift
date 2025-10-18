@@ -42,7 +42,6 @@ struct SummaryView: View {
     @EnvironmentObject var fundService: FundService
     @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
 
-    @State private var isRefreshing = false
     @State private var showingToast = false
     @State private var selectedSortKey: SortKey = .none
     @State private var sortOrder: SortOrder = .descending
@@ -50,14 +49,11 @@ struct SummaryView: View {
     @State private var refreshStats: (success: Int, fail: Int) = (0, 0)
     @State private var refreshID = UUID()
     @State private var searchText = ""
-    @State private var currentRefreshingFundName: String = ""
-    @State private var currentRefreshingFundCode: String = ""
     @State private var showingNavDateToast = false
     @State private var navDateToastMessage = ""
-    @State private var allExpanded = false
+    @State private var justRefreshed = false
 
     private let calendar = Calendar.current
-    private let maxConcurrentRequests = 3
     
     private var previousWorkday: Date {
         let today = Date()
@@ -359,7 +355,7 @@ struct SummaryView: View {
     
     var body: some View {
         NavigationView {
-            ZStack(alignment: .bottom) {
+            ZStack {
                 VStack(spacing: 0) {
                     HStack {
                         Button(action: {
@@ -504,51 +500,46 @@ struct SummaryView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .allowsHitTesting(!isRefreshing)
                 }
                 .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
                 .onTapGesture {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
-                .allowsHitTesting(!isRefreshing)
             
-                VStack {
-                    Spacer()
-                        .frame(height: 180)
-                    
-                    if showingToast {
-                        ToastView(message: toastMessage, isShowing: $showingToast)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                    
-                    if showingNavDateToast {
-                        ToastView(message: navDateToastMessage, isShowing: $showingNavDateToast)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                    }
-                    
-                    Spacer()
-                }
-                .animation(.easeInOut(duration: 0.3), value: showingToast)
-                .animation(.easeInOut(duration: 0.3), value: showingNavDateToast)
-                
-                if isRefreshing {
-                    Color.black.opacity(0.01)
-                        .edgesIgnoringSafeArea(.all)
-                    
+                if showingToast || showingNavDateToast {
                     VStack {
                         Spacer()
-                        ToastView(message: "更新中...", isShowing: $isRefreshing)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        
+                        if showingToast {
+                            ToastView(message: toastMessage, isShowing: $showingToast)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        }
+                        
+                        if showingNavDateToast {
+                            ToastView(message: navDateToastMessage, isShowing: $showingNavDateToast)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        }
+                        
                         Spacer()
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .zIndex(999)
-                    .animation(.easeInOut(duration: 0.3), value: isRefreshing)
                 }
             }
         }
         .onAppear {
-            if !hasLatestNavDate && !dataManager.holdings.isEmpty {
+            if justRefreshed {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showingToast = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingToast = false
+                        justRefreshed = false
+                    }
+                }
+            } else if !hasLatestNavDate && !dataManager.holdings.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showingToast = true
@@ -561,26 +552,10 @@ struct SummaryView: View {
                 }
             }
             
-            NotificationCenter.default.addObserver(forName: Notification.Name("RefreshStarted"), object: nil, queue: .main) { _ in
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self.isRefreshing = true
-                }
-            }
-            
             NotificationCenter.default.addObserver(forName: Notification.Name("RefreshCompleted"), object: nil, queue: .main) { notification in
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self.isRefreshing = false
-                }
                 if let stats = notification.userInfo?["stats"] as? (Int, Int) {
                     self.refreshStats = stats
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.showingToast = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.showingToast = false
-                        }
-                    }
+                    self.justRefreshed = true
                 }
             }
         }
@@ -590,12 +565,14 @@ struct SummaryView: View {
     }
     
     private var toastMessage: String {
-        if isRefreshing {
-            return "更新中..."
-        } else if showingToast && !hasLatestNavDate && !dataManager.holdings.isEmpty {
+        if justRefreshed {
+            if outdatedFunds.isEmpty {
+                return "更新完成"
+            } else {
+                return "待更新\(outdatedFunds.count)条"
+            }
+        } else if !hasLatestNavDate && !dataManager.holdings.isEmpty {
             return "非最新数据，建议更新"
-        } else if refreshStats.success > 0 || refreshStats.fail > 0 {
-            return "更新完成！成功: \(refreshStats.success), 失败: \(refreshStats.fail)"
         } else {
             return "非最新数据，建议更新"
         }
@@ -616,227 +593,6 @@ struct SummaryView: View {
             let previousWorkdayString = formatter.string(from: previousWorkday)
             return "待更新: \(previousWorkdayString)"
         }
-    }
-    
-    private func refreshOutdatedFunds() async {
-        let fundCodesToRefresh = outdatedFundCodes
-        let totalCount = fundCodesToRefresh.count
-        
-        if totalCount == 0 {
-            await MainActor.run {
-                fundService.addLog("没有需要刷新的基金。", type: .info)
-            }
-            return
-        }
-        
-        await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isRefreshing = true
-            }
-            refreshStats = (0, 0)
-            currentRefreshingFundName = ""
-            currentRefreshingFundCode = ""
-            fundService.addLog("开始刷新不是最新净值的基金...", type: .info)
-        }
-
-        var updatedFunds: [String: FundHolding] = [:]
-
-        await withTaskGroup(of: (String, FundHolding?).self) { group in
-            var iterator = fundCodesToRefresh.makeIterator()
-            var activeTasks = 0
-            
-            while activeTasks < maxConcurrentRequests, let code = iterator.next() {
-                group.addTask {
-                    await fetchFundWithRetry(code: code)
-                }
-                activeTasks += 1
-            }
-
-            while let result = await group.next() {
-                activeTasks -= 1
-                await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
-            
-                if let code = iterator.next() {
-                    group.addTask {
-                        await fetchFundWithRetry(code: code)
-                    }
-                    activeTasks += 1
-                }
-            }
-        }
-
-        await MainActor.run {
-            updateHoldingsWithNewData(updatedFunds: updatedFunds)
-    
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isRefreshing = false
-            }
-            currentRefreshingFundName = ""
-            currentRefreshingFundCode = ""
-            fundService.addLog("不是最新净值的基金刷新完成。成功: \(refreshStats.success), 失败: \(refreshStats.fail)", type: .info)
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showingToast = true
-            }
-            
-            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
-        }
-    }
-    
-    private func refreshAllFunds() async {
-        await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isRefreshing = true
-            }
-            refreshStats = (0, 0)
-            currentRefreshingFundName = ""
-            currentRefreshingFundCode = ""
-            fundService.addLog("开始全局刷新所有基金数据...", type: .info)
-        }
-
-        let allFundCodes = Array(Set(dataManager.holdings.map { $0.fundCode }))
-        let totalCount = allFundCodes.count
-    
-        if totalCount == 0 {
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isRefreshing = false
-                }
-                fundService.addLog("没有需要刷新的基金数据。", type: .info)
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showingToast = true
-                }
-            }
-            return
-        }
-    
-        var updatedFunds: [String: FundHolding] = [:]
-
-        await withTaskGroup(of: (String, FundHolding?).self) { group in
-            var iterator = allFundCodes.makeIterator()
-            var activeTasks = 0
-            
-            while activeTasks < maxConcurrentRequests, let code = iterator.next() {
-                group.addTask {
-                    await fetchFundWithRetry(code: code)
-                }
-                activeTasks += 1
-            }
-
-            while let result = await group.next() {
-                activeTasks -= 1
-                await processFundResult(result: result, updatedFunds: &updatedFunds, totalCount: totalCount)
-            
-                if let code = iterator.next() {
-                    group.addTask {
-                        await fetchFundWithRetry(code: code)
-                    }
-                    activeTasks += 1
-                }
-            }
-        }
-
-        await MainActor.run {
-            updateHoldingsWithNewData(updatedFunds: updatedFunds)
-    
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isRefreshing = false
-            }
-            currentRefreshingFundName = ""
-            currentRefreshingFundCode = ""
-            fundService.addLog("所有基金刷新完成。成功: \(refreshStats.success), 失败: \(refreshStats.fail)", type: .info)
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showingToast = true
-            }
-            
-            NotificationCenter.default.post(name: Notification.Name("HoldingsDataUpdated"), object: nil)
-        }
-    }
-
-    private func fetchFundWithRetry(code: String) async -> (String, FundHolding?) {
-        var retryCount = 0
-        var fetchedFundDetails: (fundName: String, returns: (navReturn1m: Double?, navReturn3m: Double?, navReturn6m: Double?, navReturn1y: Double?))?
-
-        while retryCount < 5 {
-            fetchedFundDetails = await fundService.fetchFundDetailsFromEastmoney(code: code)
-            
-            if let details = fetchedFundDetails {
-                let hasValidName = details.fundName != "N/A"
-                let hasValidReturnData = details.returns.navReturn1m != nil || details.returns.navReturn3m != nil || details.returns.navReturn6m != nil || details.returns.navReturn1y != nil
-
-                if hasValidName {
-                    var holding = FundHolding.invalid(fundCode: code)
-                    holding.fundName = details.fundName
-                    holding.navReturn1m = details.returns.navReturn1m
-                    holding.navReturn3m = details.returns.navReturn3m
-                    holding.navReturn6m = details.returns.navReturn6m
-                    holding.navReturn1y = details.returns.navReturn1y
-                    holding.isValid = hasValidReturnData
-                    
-                    return (code, holding)
-                } else {
-                    fetchedFundDetails = nil
-                }
-            }
-
-            retryCount += 1
-            if retryCount < 5 {
-                let retryDelay = Double(retryCount) * 0.5
-                try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
-            }
-        }
-
-        return (code, nil)
-    }
-    
-    private func processFundResult(result: (String, FundHolding?), updatedFunds: inout [String: FundHolding], totalCount: Int) async {
-        let (code, fundInfo) = result
-    
-        await MainActor.run {
-            if let fundInfo = fundInfo {
-                currentRefreshingFundName = fundInfo.fundName
-                currentRefreshingFundCode = code
-            }
-            
-            if let fundInfo = fundInfo {
-                let hasValidName = fundInfo.fundName != "N/A"
-                let hasValidReturnData = fundInfo.navReturn1m != nil || fundInfo.navReturn3m != nil || fundInfo.navReturn6m != nil || fundInfo.navReturn1y != nil
-            
-                if hasValidName {
-                    updatedFunds[code] = fundInfo
-                    if hasValidReturnData {
-                         refreshStats.success += 1
-                         fundService.addLog("基金 \(code) 刷新成功", type: .success)
-                    } else {
-                        refreshStats.success += 1
-                        fundService.addLog("基金 \(code) 成功获取名称，但无收益率数据", type: .info)
-                    }
-                } else {
-                    refreshStats.fail += 1
-                    fundService.addLog("基金 \(code) 刷新失败：无有效名称或收益率数据", type: .error)
-                }
-            } else {
-                refreshStats.fail += 1
-                fundService.addLog("基金 \(code) 刷新失败：未获取到基金信息", type: .error)
-            }
-        }
-    }
-
-    private func updateHoldingsWithNewData(updatedFunds: [String: FundHolding]) {
-        var newHoldings = dataManager.holdings
-    
-        for (index, holding) in newHoldings.enumerated() {
-            if let updatedInfo = updatedFunds[holding.fundCode] {
-                newHoldings[index].fundName = updatedInfo.fundName
-                newHoldings[index].navReturn1m = updatedInfo.navReturn1m
-                newHoldings[index].navReturn3m = updatedInfo.navReturn3m
-                newHoldings[index].navReturn6m = updatedInfo.navReturn6m
-                newHoldings[index].navReturn1y = updatedInfo.navReturn1y
-                newHoldings[index].isValid = updatedInfo.isValid
-            }
-        }
-    
-        dataManager.holdings = newHoldings
-        dataManager.saveData()
     }
     
     private func colorForValue(_ value: Double?) -> Color {
