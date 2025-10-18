@@ -261,11 +261,6 @@ struct SummaryView: View {
                             }
                             .padding(.horizontal, 6)
                         }
-                        
-                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.gray)
-                            .frame(width: 16, height: 16)
                     }
                     .padding(.vertical, 6)
                     .padding(.horizontal, 16)
