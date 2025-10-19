@@ -300,6 +300,11 @@ struct ConfigView: View {
         UserDefaults.standard.register(defaults: ["isPrivacyModeEnabled": true])
         UserDefaults.standard.register(defaults: ["themeMode": "system"])
         UserDefaults.standard.register(defaults: ["selectedFundAPI": "eastmoney"])
+        
+        // 启动渐变动画
+        withAnimation(Animation.linear(duration: 8).repeatForever(autoreverses: false)) {
+            gradientAnimationProgress = 1.0
+        }
     }
     
     func onDisappear() {
@@ -403,7 +408,18 @@ struct ConfigView: View {
                                 .font(.system(size: 16))
                                 .italic()
                                 .bold(false)
-                                .foregroundColor(Color(red: 0.7, green: 0.85, blue: 0.9))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),
+                                            Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),
+                                            Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),
+                                            Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)
+                                        ]),
+                                        startPoint: UnitPoint(x: -1 + gradientAnimationProgress * 2, y: -1 + gradientAnimationProgress * 2),
+                                        endPoint: UnitPoint(x: 0 + gradientAnimationProgress * 2, y: 0 + gradientAnimationProgress * 2)
+                                    )
+                                )
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 30)

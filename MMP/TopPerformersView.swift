@@ -381,7 +381,7 @@ struct TopPerformersView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) { // 修改：将spacing从12改为8
                             Button {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                     isFilterExpanded.toggle()
@@ -401,7 +401,7 @@ struct TopPerformersView: View {
                                     )
                             }
                             
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) { // 修改：将spacing从6改为8
                                 Button(action: {
                                     withAnimation {
                                         selectedSortKey = selectedSortKey.next
