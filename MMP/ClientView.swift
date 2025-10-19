@@ -741,12 +741,17 @@ struct ClientView: View {
                             Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
                                 .font(.system(size: 18))
                                 .foregroundColor(.accentColor)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(Color.accentColor.opacity(0.15))
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                )
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.clear)
-                        .cornerRadius(8)
-                    
+
                         Button(action: {
                             Task {
                                 await refreshAllFundInfo()
@@ -756,17 +761,31 @@ struct ClientView: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle())
                                     .scaleEffect(0.8)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.accentColor.opacity(0.15))
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                    )
                             } else {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 18))
                                     .foregroundColor(.accentColor)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.accentColor.opacity(0.15))
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                    )
                             }
                         }
                         .disabled(isRefreshing)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.clear)
-                        .cornerRadius(8)
                     
                         Spacer()
                     

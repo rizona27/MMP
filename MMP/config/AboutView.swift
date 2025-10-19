@@ -25,7 +25,8 @@ class UpdateLogViewModel: ObservableObject {
         UpdateLog(version: "Version 1.6.3", description: "去除定位栏，\n新增编辑模式的隐私开关。"),
         UpdateLog(version: "Version 1.6.4", description: "渐变动画及Toast模块更新。"),
         UpdateLog(version: "Version 1.6.5", description: "报告和基金展示模块优化。"),
-        UpdateLog(version: "Version 1.6.6", description: "一览和客户页面动画效果增强，\nToast显示机制调整"),
+        UpdateLog(version: "Version 1.6.6", description: "一览和客户页面动画效果增强，\nToast显示机制调整。"),
+        UpdateLog(version: "Version 1.6.7", description: "排名页面优化，\n增加筛选功能。"),
         UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
@@ -67,7 +68,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.6.6      By: rizona.cn@gmail.com")
+                        Text("Version: 1.6.7      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }

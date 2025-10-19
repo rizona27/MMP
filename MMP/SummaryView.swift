@@ -28,6 +28,16 @@ enum SortKey: String, CaseIterable, Identifiable {
         case .navReturn1y: return .none
         }
     }
+    
+    var color: Color {
+        switch self {
+        case .none: return .primary
+        case .navReturn1m: return .blue
+        case .navReturn3m: return .purple
+        case .navReturn6m: return .orange
+        case .navReturn1y: return .red 
+        }
+    }
 }
 
 enum SortOrder: String, CaseIterable, Identifiable {
@@ -438,47 +448,61 @@ struct SummaryView: View {
                             toggleAllCards()
                         }) {
                             Image(systemName: areAnyCardsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
-                                .foregroundColor(.accentColor)
                                 .font(.system(size: 18))
+                                .foregroundColor(.accentColor)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(Color.accentColor.opacity(0.15))
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                )
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.clear)
-                        .cornerRadius(8)
                     
-                        Button(action: {
-                            withAnimation {
-                                selectedSortKey = selectedSortKey.next
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: sortButtonIconName())
-                                    .foregroundColor(.primary)
-                                    .font(.system(size: 16))
-                                if selectedSortKey != .none {
-                                    Text(selectedSortKey.rawValue)
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.clear)
-                            .cornerRadius(8)
-                        }
-
-                        if selectedSortKey != .none {
+                        HStack(spacing: 8) {
                             Button(action: {
                                 withAnimation {
-                                    sortOrder = (sortOrder == .ascending) ? .descending : .ascending
+                                    selectedSortKey = selectedSortKey.next
                                 }
                             }) {
-                                Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(.white)
-                                    .frame(width: 22, height: 22)
-                                    .background(Color.accentColor)
-                                    .clipShape(Circle())
+                                HStack(spacing: 4) {
+                                    Image(systemName: sortButtonIconName())
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(selectedSortKey == .none ? .primary : selectedSortKey.color)
+                                    if selectedSortKey != .none {
+                                        Text(selectedSortKey.rawValue)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(selectedSortKey.color)
+                                    }
+                                }
+                                .padding(.horizontal, 8)
+                                .frame(height: 32)
+                                .background(
+                                    Capsule()
+                                        .fill(selectedSortKey == .none ? Color.gray.opacity(0.1) : selectedSortKey.color.opacity(0.15))
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(selectedSortKey == .none ? Color.gray.opacity(0.3) : selectedSortKey.color.opacity(0.3), lineWidth: 1)
+                                )
+                            }
+
+                            if selectedSortKey != .none {
+                                Button(action: {
+                                    withAnimation {
+                                        sortOrder = (sortOrder == .ascending) ? .descending : .ascending
+                                    }
+                                }) {
+                                    Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24, height: 24)
+                                        .background(selectedSortKey.color)
+                                        .clipShape(Circle())
+                                        .shadow(color: selectedSortKey.color.opacity(0.3), radius: 2, x: 0, y: 1)
+                                }
                             }
                         }
                     
