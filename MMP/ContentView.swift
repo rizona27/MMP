@@ -8,7 +8,6 @@ struct ContentView: View {
     @State private var showSplash = true
     @State private var selectedTab = 0
     
-    // 启动动画状态变量
     @State private var splashOpacity: Double = 1.0
     @State private var mainTextOpacity: Double = 0.0
     @State private var subtitleOpacity: Double = 0.0
@@ -17,17 +16,14 @@ struct ContentView: View {
     @State private var mainTextOffset: CGFloat = 10.0
     @State private var subtitleOffset: CGFloat = 8.0
     
-    // 高光动画状态
     @State private var highlightPosition: CGFloat = -1.0
     @State private var highlightOpacity: Double = 0.0
     
-    // 光晕动画状态
     @State private var glowScale: CGFloat = 0.7
     @State private var glowOpacity: Double = 0.0
     @State private var glowRotation: Double = 0.0
     @State private var glowOffset: CGSize = CGSize(width: -100, height: -100)
     
-    // 转场效果状态
     @State private var splashBlur: CGFloat = 0.0
     @State private var splashScale: CGFloat = 1.0
 
@@ -35,7 +31,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // 主程序界面
             NavigationView {
                 TabView(selection: $selectedTab) {
                     SummaryView()
@@ -81,7 +76,6 @@ struct ContentView: View {
 
             if showSplash {
                 ZStack {
-                    // 基础背景
                     Rectangle()
                         .fill(
                             LinearGradient(
@@ -96,7 +90,6 @@ struct ContentView: View {
                         )
                         .edgesIgnoringSafeArea(.all)
                     
-                    // 动态光晕效果
                     ForEach(0..<2, id: \.self) { index in
                         Circle()
                             .fill(
@@ -122,11 +115,9 @@ struct ContentView: View {
                             .blur(radius: 15 + CGFloat(index) * 5)
                     }
                     
-                    // 文字内容层
                     VStack(alignment: .center, spacing: 12) {
                         Spacer()
                         
-                        // 主标题
                         VStack(alignment: .center, spacing: 4) {
                             HStack(spacing: 6) {
                                 Text("Less")
@@ -148,7 +139,6 @@ struct ContentView: View {
                         .opacity(mainTextOpacity)
                         .offset(y: mainTextOffset)
                         
-                        // 副标题
                         Text("Finding Abundance Through Subtraction")
                             .font(.system(size: 16, weight: .light))
                             .foregroundColor(Color(hex: "6D4C41").opacity(0.8))
@@ -159,7 +149,6 @@ struct ContentView: View {
 
                         Spacer()
 
-                        // 版权信息
                         VStack(spacing: 4) {
                             Text("专注 · 价值")
                                 .font(.system(size: 13, weight: .light))
@@ -172,7 +161,6 @@ struct ContentView: View {
                         .opacity(copyrightOpacity)
                         .padding(.bottom, 50)
                         .overlay(
-                            // 高光扫过效果
                             Rectangle()
                                 .fill(
                                     LinearGradient(
@@ -222,7 +210,6 @@ struct ContentView: View {
     }
     
     private func startNaturalAnimation() {
-        // 重置所有状态
         splashOpacity = 1.0
         mainTextOpacity = 0.0
         subtitleOpacity = 0.0
@@ -236,19 +223,16 @@ struct ContentView: View {
         splashBlur = 0.0
         splashScale = 1.0
         
-        // 光晕动画
         withAnimation(.easeOut(duration: 2.5)) {
             glowScale = 1.4
             glowOpacity = 0.4
             glowOffset = CGSize(width: 30, height: 30)
         }
         
-        // 光晕旋转
         withAnimation(.linear(duration: 8.0).repeatForever(autoreverses: false)) {
             glowRotation = 360
         }
         
-        // 主文字淡入和轻微上移
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             withAnimation(.easeOut(duration: 1.2)) {
                 mainTextOpacity = 1.0
@@ -256,7 +240,6 @@ struct ContentView: View {
             }
         }
         
-        // 副标题延迟淡入
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             withAnimation(.easeOut(duration: 1.0)) {
                 subtitleOpacity = 1.0
@@ -264,13 +247,11 @@ struct ContentView: View {
             }
         }
         
-        // 版权信息最后淡入
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             withAnimation(.easeOut(duration: 0.8)) {
                 copyrightOpacity = 1.0
             }
             
-            // 高光扫过动画
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation(.easeIn(duration: 0.1)) {
                     highlightOpacity = 1.0
@@ -280,7 +261,6 @@ struct ContentView: View {
                     highlightPosition = 1.0
                 }
                 
-                // 高光淡出
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
                     withAnimation(.easeOut(duration: 0.3)) {
                         highlightOpacity = 0.0
@@ -289,21 +269,17 @@ struct ContentView: View {
             }
         }
         
-        // 整体转场效果 - 使用模糊和缩放淡出
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-            // 光晕淡出
             withAnimation(.easeIn(duration: 0.8)) {
                 glowOpacity = 0.0
             }
             
-            // 启动画面转场效果 - 模糊和轻微缩小
             withAnimation(.easeOut(duration: 1.2)) {
                 splashOpacity = 0.0
                 splashBlur = 8.0
                 splashScale = 0.98
             }
             
-            // 延迟一点再切换主界面
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 withAnimation(.easeIn(duration: 0.3)) {
                     showSplash = false

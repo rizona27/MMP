@@ -52,10 +52,12 @@ struct SummaryView: View {
     @State private var navDateToastMessage = ""
     @State private var hasShownInitialToast = false
     @State private var appLaunchTime: Date = Date()
-    @State private var lastToastShowTime: Date = Date.distantPast // 记录上次显示Toast的时间
+    @State private var lastToastShowTime: Date = Date.distantPast
+    @State private var toastTimer: Timer? = nil
 
     private let calendar = Calendar.current
-    private let toastCooldown: TimeInterval = 3600 // 1小时冷却时间
+    private let toastCooldown: TimeInterval = 3600
+    private let toastDisplayTime: TimeInterval = 6.0
     
     private var previousWorkday: Date {
         let today = Date()
@@ -217,10 +219,33 @@ struct SummaryView: View {
         }
     }
     
+    private func showToast() {
+        toastTimer?.invalidate()
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingToast = true
+        }
+        
+        toastTimer = Timer.scheduledTimer(withTimeInterval: toastDisplayTime, repeats: false) { _ in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showingToast = false
+            }
+        }
+    }
+    
+    private func hideToast() {
+        toastTimer?.invalidate()
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingToast = false
+        }
+    }
+    
     private func fundGroupItemView(fundCode: String, funds: [FundHolding]) -> some View {
         let baseColor = fundCode.morandiColor()
         let isExpanded = expandedFundCodes.contains(fundCode)
         let firstFund = funds.first!
+        
+        let shouldShowClientInfo = !isPrivacyModeEnabled || !searchText.isEmpty
         
         return VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
@@ -247,17 +272,21 @@ struct SummaryView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 2) {
-                            Text("持有人数:")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                            Text("\(funds.count)")
-                                .font(.system(size: 12, weight: .semibold))
-                                .italic()
-                                .foregroundColor(colorForHoldingCount(funds.count))
-                            Text("人")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
+                        if !isPrivacyModeEnabled {
+                            HStack(spacing: 2) {
+                                Text("持有人数:")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                Text("\(funds.count)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .italic()
+                                    .foregroundColor(colorForHoldingCount(funds.count))
+                                Text("人")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Spacer().frame(width: 60)
                         }
                     }
                     .padding(.vertical, 6)
@@ -288,56 +317,57 @@ struct SummaryView: View {
                     .padding(.leading, 8)
                 }
             }
-            // 分组标题栏在展开时从右侧向左缩进20点
             .padding(.trailing, isExpanded ? 20 : 0)
             .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
             if isExpanded {
-                // 展开的基金卡片从左侧向右缩进20点，延迟显示
-                VStack(alignment: .leading, spacing: 12) {
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                VStack(alignment: .leading, spacing: shouldShowClientInfo ? 12 : 8) {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: shouldShowClientInfo ? 8 : 6) {
                         GridRow {
                             Text("近1月:")
-                                .font(.system(size: 13))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
                                 .foregroundColor(.secondary)
                             Text(firstFund.navReturn1m?.formattedPercentage ?? "/")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
                                 .foregroundColor(colorForValue(firstFund.navReturn1m))
                             Text("近3月:")
-                                .font(.system(size: 13))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
                                 .foregroundColor(.secondary)
                             Text(firstFund.navReturn3m?.formattedPercentage ?? "/")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
                                 .foregroundColor(colorForValue(firstFund.navReturn3m))
                         }
                         GridRow {
                             Text("近6月:")
-                                .font(.system(size: 13))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
                                 .foregroundColor(.secondary)
                             Text(firstFund.navReturn6m?.formattedPercentage ?? "/")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
                                 .foregroundColor(colorForValue(firstFund.navReturn6m))
                             Text("近1年:")
-                                .font(.system(size: 13))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
                                 .foregroundColor(.secondary)
                             Text(firstFund.navReturn1y?.formattedPercentage ?? "/")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
                                 .foregroundColor(colorForValue(firstFund.navReturn1y))
                         }
                     }
+                    .frame(maxWidth: .infinity)
                     
-                    Divider()
-                    
-                    HStack(alignment: .top) {
-                        Text("持有客户:")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: true, vertical: false)
+                    if shouldShowClientInfo {
+                        Divider()
+                        
+                        HStack(alignment: .top) {
+                            Text("持有客户:")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: true, vertical: false)
 
-                        combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn, sortOrder: sortOrder, isPrivacyModeEnabled: isPrivacyModeEnabled)
-                            .font(.system(size: 13))
-                            .lineLimit(nil)
-                            .multilineTextAlignment(.leading)
+                            combinedClientAndReturnText(funds: funds, getHoldingReturn: getHoldingReturn, sortOrder: sortOrder, isPrivacyModeEnabled: isPrivacyModeEnabled)
+                                .font(.system(size: 13))
+                                .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
                 }
                 .padding(16)
@@ -345,7 +375,8 @@ struct SummaryView: View {
                 .cornerRadius(10)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
                 .padding(.top, 8)
-                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .padding(.leading, 20)
+                .frame(maxWidth: .infinity)
                 .transition(
                     .asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.95))
@@ -358,6 +389,7 @@ struct SummaryView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
     }
     
     private func colorForHoldingCount(_ count: Int) -> Color {
@@ -464,7 +496,6 @@ struct SummaryView: View {
                         .padding(.bottom, 8)
                     }
                 
-                    // 主要内容区域
                     if dataManager.holdings.isEmpty {
                         VStack {
                             Spacer()
@@ -522,17 +553,19 @@ struct SummaryView: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             
-                // Toast 叠加层 - 修复位置和大小
                 if showingToast || showingNavDateToast {
                     VStack {
                         if showingToast {
                             CustomToastView(
-                                outdatedCount: outdatedFunds.count,
+                                outdatedCount: outdatedFundCodes.count,
                                 sortedUniqueFunds: getSortedUniqueOutdatedFunds(),
                                 isShowing: $showingToast,
-                                showTime: 6.0
+                                showTime: toastDisplayTime
                             )
                             .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                            .onTapGesture {
+                                hideToast()
+                            }
                         }
                         
                         if showingNavDateToast {
@@ -545,20 +578,29 @@ struct SummaryView: View {
                 }
             }
         }
+        .id(refreshID)
         .onAppear {
-            // 只在特定条件下检查并显示Toast
-            checkAndShowOutdatedToastIfNeeded()
+            hasShownInitialToast = false
+            appLaunchTime = Date()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                checkAndShowOutdatedToastIfNeeded()
+            }
+        }
+        .onDisappear {
+            toastTimer?.invalidate()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
             refreshID = UUID()
-            // 数据更新后重置标志，允许再次显示Toast
             hasShownInitialToast = false
-            lastToastShowTime = Date.distantPast // 重置上次显示时间
+            lastToastShowTime = Date.distantPast
             
-            // 数据更新后检查是否需要显示Toast
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 checkAndShowOutdatedToastIfNeeded()
             }
+        }
+        .onChange(of: isPrivacyModeEnabled) {
+            refreshID = UUID()
         }
     }
     
@@ -587,12 +629,6 @@ struct SummaryView: View {
         }
     }
     
-    /// 改进的Toast显示逻辑：
-    /// 1. 只在以下情况下显示：
-    ///    - App首次启动且有非最新日期的基金
-    ///    - 数据更新后且有非最新日期的基金
-    ///    - 距离上次显示超过1小时且有非最新日期的基金
-    /// 2. 避免每次切换到页面都显示
     private func checkAndShowOutdatedToastIfNeeded() {
         guard !dataManager.holdings.isEmpty && !outdatedFunds.isEmpty else {
             return
@@ -600,29 +636,17 @@ struct SummaryView: View {
 
         let currentTime = Date()
         
-        // 检查冷却时间 - 如果上次显示时间在1小时内，则不显示
         if currentTime.timeIntervalSince(lastToastShowTime) < toastCooldown {
             return
         }
 
-        // 检查是否已经显示过初始Toast
         if hasShownInitialToast {
             return
         }
         
-        // 显示Toast
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showingToast = true
-                hasShownInitialToast = true
-                lastToastShowTime = currentTime // 记录显示时间
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showingToast = false
-                }
-            }
-        }
+        showToast()
+        hasShownInitialToast = true
+        lastToastShowTime = currentTime
     }
     
     private func getSortedUniqueOutdatedFunds() -> [(String, String)] {
@@ -631,7 +655,6 @@ struct SummaryView: View {
             uniqueFunds[fund.fundCode] = fund.fundName
         }
         
-        // 按基金代码从小到大排序
         return uniqueFunds.sorted { $0.key < $1.key }
     }
     
@@ -661,40 +684,34 @@ struct SummaryView: View {
     }
 }
 
-// 自定义ToastView，修复位置和大小问题
 struct CustomToastView: View {
     let outdatedCount: Int
     let sortedUniqueFunds: [(String, String)]
     @Binding var isShowing: Bool
     let showTime: Double
     
-    // 计算动态高度
     private var toastHeight: CGFloat {
-        let baseHeight: CGFloat = 60 // 标题和基本内边距的高度
-        let lineHeight: CGFloat = 22 // 每行基金信息的高度
+        let baseHeight: CGFloat = 60
+        let lineHeight: CGFloat = 22
         let maxDisplayCount = min(5, sortedUniqueFunds.count)
         let contentHeight = CGFloat(maxDisplayCount) * lineHeight
-        let maxHeight: CGFloat = 200 // 最大高度
+        let maxHeight: CGFloat = 200
         
         return min(baseHeight + contentHeight, maxHeight)
     }
     
-    // 计算最合适的宽度
     private var optimalWidth: CGFloat {
-        // 计算最长基金名称的长度
         let maxNameLength = sortedUniqueFunds.prefix(5).map { fundCode, fundName in
             let displayName = fundName.count > 8 ? String(fundName.prefix(8)) + "..." : fundName
-            return displayName.count + fundCode.count + 4 // +4 for brackets and spacing
+            return displayName.count + fundCode.count + 4
         }.max() ?? 0
         
-        // 基础宽度 + 根据最长内容调整
         let baseWidth: CGFloat = 100
-        let extraWidth = CGFloat(maxNameLength) * 7 // 每个字符大约7点宽度
+        let extraWidth = CGFloat(maxNameLength) * 7
         
-        return min(baseWidth + extraWidth, 350) // 最大不超过350
+        return min(baseWidth + extraWidth, 200)
     }
     
-    // 根据数量获取颜色
     private func colorForCount(_ count: Int) -> Color {
         if count == 1 {
             return .yellow
@@ -707,9 +724,8 @@ struct CustomToastView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 标题 - 使用深灰色，数字部分根据数量变色且斜体
             HStack(spacing: 0) {
-                Text("非最新日期净值:")
+                Text("非最新日期净值: ")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Color(.darkGray))
                 
@@ -723,7 +739,6 @@ struct CustomToastView: View {
                     .foregroundColor(Color(.darkGray))
             }
             
-            // 内容区域 - 可滚动
             if !sortedUniqueFunds.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
@@ -741,7 +756,6 @@ struct CustomToastView: View {
                             }
                         }
                         
-                        // 只有当基金数量超过5支时才显示"..."
                         if sortedUniqueFunds.count > 5 {
                             Text("... 还有\(sortedUniqueFunds.count - 5)支")
                                 .font(.system(size: 14))
@@ -750,12 +764,12 @@ struct CustomToastView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 120) // 限制最大高度
+                .frame(maxHeight: 120)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .frame(width: optimalWidth, height: toastHeight) // 使用最合适宽度
+        .frame(width: optimalWidth, height: toastHeight)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemGray6))
@@ -765,13 +779,6 @@ struct CustomToastView: View {
                         .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                 )
         )
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + showTime) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isShowing = false
-                }
-            }
-        }
     }
 }
 

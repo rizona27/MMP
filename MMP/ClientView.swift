@@ -79,13 +79,11 @@ class ToastQueueManager: ObservableObject {
     }
     
     func addToast(_ message: String, type: ToastType, showTime: Double = 1.5) {
-        // 检查是否已经存在相同的Toast消息
         let toastId = "\(message)-\(type)"
         guard !activeToastIds.contains(toastId) else { return }
         
         let toast = ToastItem(message: message, type: type, showTime: showTime)
         
-        // 使用动画添加Toast
         withAnimation(.easeInOut(duration: 0.3)) {
             toasts.append(toast)
         }
@@ -324,7 +322,6 @@ struct ClientView: View {
             let toastMessage = "客户号(\(holding.clientID))\n已经复制到剪贴板"
             toastQueue.addToast(toastMessage, type: .copy)
         }, onGenerateReport: { holding in
-            // 检查是否已获取有效净值数据
             if !holding.isValid || holding.currentNav <= 0.0001 {
                 toastQueue.addToast("更新数据后可用", type: .outdated, showTime: 2)
                 return
@@ -582,7 +579,6 @@ struct ClientView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            // 分组标题栏在展开时从右侧向左缩进20点
             .padding(.trailing, isExpanded ? 20 : 0)
             .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
@@ -600,7 +596,7 @@ struct ClientView: View {
                 }
                 .padding(.top, 10)
                 .padding(.bottom, 6)
-                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .padding(.leading, 20)
                 .transition(
                     .asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.95))
@@ -665,7 +661,6 @@ struct ClientView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            // 置顶分栏标题在展开时从右侧向左缩进20点
             .padding(.trailing, isExpanded ? 20 : 0)
             .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
@@ -677,7 +672,7 @@ struct ClientView: View {
                 }
                 .padding(.top, 10)
                 .padding(.bottom, 6)
-                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .padding(.leading, 20)
                 .transition(
                     .asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.95))
@@ -726,7 +721,6 @@ struct ClientView: View {
                 refreshID = UUID()
                 fundService.addLog("ClientView: 基金 \(holding.fundCode) 切换置顶状态: \(!isPinned)", type: .info)
                 
-                // 如果取消置顶后置顶区域为空，则自动折叠
                 if isPinned && self.pinnedHoldings.isEmpty {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         self.expandedClients.remove("Pinned")
@@ -897,8 +891,7 @@ struct ClientView: View {
                 }
                 .background(Color(.systemGroupedBackground))
                 .allowsHitTesting(!isRefreshing)
-                
-                // Toast显示区域 - 使用与SummaryView完全相同的效果
+
                 if !toastQueue.toasts.isEmpty {
                     VStack {
                         Spacer()
