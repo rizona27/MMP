@@ -72,28 +72,43 @@ struct SummaryView: View {
         }
     }
     
-    private var hasAnyLatestNavDate: Bool {
-        if dataManager.holdings.isEmpty || dataManager.holdings.allSatisfy({ !$0.isValid }) {
-            return false
-        }
+    // 修复：找到所有基金中最新的净值日期作为基准
+    private var benchmarkNavDate: Date? {
+        let validHoldings = dataManager.holdings.filter { $0.isValid }
+        guard !validHoldings.isEmpty else { return nil }
         
-        let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
-        return dataManager.holdings.contains { holding in
-            holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
-        }
+        return validHoldings
+            .map { $0.navDate }
+            .max()
     }
     
-    private var outdatedFunds: [FundHolding] {
+    private var hasAnyLatestNavDate: Bool {
+        guard let benchmarkDate = benchmarkNavDate else { return false }
+        
         let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
+        let benchmarkDateStart = calendar.startOfDay(for: benchmarkDate)
+        
+        return calendar.isDate(benchmarkDateStart, inSameDayAs: previousWorkdayStart)
+    }
+    
+    // 修复：使用基准净值日期来判断哪些基金是非最新的
+    private var outdatedFunds: [FundHolding] {
+        guard let benchmarkDate = benchmarkNavDate else { return [] }
+        
+        let benchmarkDateStart = calendar.startOfDay(for: benchmarkDate)
         return dataManager.holdings.filter { holding in
-            holding.isValid && !calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
+            guard holding.isValid else { return false }
+            let holdingDateStart = calendar.startOfDay(for: holding.navDate)
+            return !calendar.isDate(holdingDateStart, inSameDayAs: benchmarkDateStart)
         }
     }
     
     private var upToDateFunds: [FundHolding] {
-        let previousWorkdayStart = calendar.startOfDay(for: previousWorkday)
+        guard let benchmarkDate = benchmarkNavDate else { return [] }
+        
+        let benchmarkDateStart = calendar.startOfDay(for: benchmarkDate)
         return dataManager.holdings.filter { holding in
-            holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: previousWorkdayStart)
+            holding.isValid && calendar.isDate(holding.navDate, inSameDayAs: benchmarkDateStart)
         }
     }
     
@@ -102,10 +117,7 @@ struct SummaryView: View {
     }
     
     private var latestNavDate: Date? {
-        dataManager.holdings
-            .filter { $0.isValid && $0.navDate <= Date() }
-            .map { $0.navDate }
-            .max()
+        benchmarkNavDate
     }
 
     private var recognizedFunds: [String: [FundHolding]] {
