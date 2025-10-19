@@ -297,12 +297,8 @@ struct ConfigView: View {
     }
 
     func onAppear() {
-        // 确保默认值设置正确
-        // 隐私模式默认开启
         UserDefaults.standard.register(defaults: ["isPrivacyModeEnabled": true])
-        // 主题模式默认跟随系统
         UserDefaults.standard.register(defaults: ["themeMode": "system"])
-        // 数据接口默认使用天天基金
         UserDefaults.standard.register(defaults: ["selectedFundAPI": "eastmoney"])
     }
     

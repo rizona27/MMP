@@ -72,7 +72,6 @@ struct SummaryView: View {
         }
     }
     
-    // 修复：找到所有基金中最新的净值日期作为基准
     private var benchmarkNavDate: Date? {
         let validHoldings = dataManager.holdings.filter { $0.isValid }
         guard !validHoldings.isEmpty else { return nil }
@@ -91,7 +90,6 @@ struct SummaryView: View {
         return calendar.isDate(benchmarkDateStart, inSameDayAs: previousWorkdayStart)
     }
     
-    // 修复：使用基准净值日期来判断哪些基金是非最新的
     private var outdatedFunds: [FundHolding] {
         guard let benchmarkDate = benchmarkNavDate else { return [] }
         
@@ -334,7 +332,6 @@ struct SummaryView: View {
             
             if isExpanded {
                 VStack(alignment: .leading, spacing: shouldShowClientInfo ? 12 : 8) {
-                    // 修复网格对齐问题
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: shouldShowClientInfo ? 8 : 6) {
                             HStack(spacing: 16) {
