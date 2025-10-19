@@ -11,20 +11,21 @@ class UpdateLogViewModel: ObservableObject {
     private var timer: Timer?
 
     let logs: [UpdateLog] = [
-        UpdateLog(version: "Version 1.0.0", description: "初代版本，基础导入导出功能和API调用逻辑构建。"),
-        UpdateLog(version: "Version 1.2.0", description: "重构客户、日志页，新增排行页，优化程序使用。"),
-        UpdateLog(version: "Version 1.3.0", description: "一览页逻辑更新，重构日志分类、完善收益率指标。"),
-        UpdateLog(version: "Version 1.4.0", description: "增加Logo和App名称。\n新增冗余API接口。"),
+        UpdateLog(version: "Version 1.0.0", description: "初代版本，\n基础导入导出功能和API调用逻辑构建。"),
+        UpdateLog(version: "Version 1.2.0", description: "重构客户、日志页，\n新增排行页、优化程序使用。"),
+        UpdateLog(version: "Version 1.3.0", description: "一览页逻辑更新，\n重构日志分类、完善收益率指标。"),
+        UpdateLog(version: "Version 1.4.0", description: "增加Logo和App名称，\n新增冗余API接口。"),
         UpdateLog(version: "Version 1.5.0", description: "增加隐私模式。"),
-        UpdateLog(version: "Version 1.5.5", description: "API错误修正，数据导入刷新模式更新。"),
+        UpdateLog(version: "Version 1.5.5", description: "API错误修正，\n数据导入刷新模式更新。"),
         UpdateLog(version: "Version 1.5.7", description: "收益率字段及导入逻辑完善。"),
         UpdateLog(version: "Version 1.5.9", description: "客户页刷新模式更新。"),
-        UpdateLog(version: "Version 1.6.0", description: "客户页右上角更新进度展示，适配隐私模式。"),
-        UpdateLog(version: "Version 1.6.1", description: "一览页增加搜索栏，优化数据更新提示。"),
+        UpdateLog(version: "Version 1.6.0", description: "客户页右上角更新进度展示，\n适配隐私模式。"),
+        UpdateLog(version: "Version 1.6.1", description: "一览页增加搜索栏，\n优化数据更新提示。"),
         UpdateLog(version: "Version 1.6.2", description: "统一一览、客户界面、卡片UI。"),
-        UpdateLog(version: "Version 1.6.3", description: "去除定位栏、新增编辑模式的隐私开关。"),
+        UpdateLog(version: "Version 1.6.3", description: "去除定位栏，\n新增编辑模式的隐私开关。"),
         UpdateLog(version: "Version 1.6.4", description: "渐变动画及Toast模块更新。"),
         UpdateLog(version: "Version 1.6.5", description: "报告和基金展示模块优化。"),
+        UpdateLog(version: "Version 1.6.6", description: "一览和客户页面动画效果增强，\nToast显示机制调整"),
         UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
@@ -66,7 +67,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.6.5      By: rizona.cn@gmail.com")
+                        Text("Version: 1.6.6      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }

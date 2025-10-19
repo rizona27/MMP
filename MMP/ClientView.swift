@@ -527,7 +527,7 @@ struct ClientView: View {
         return VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         if isExpanded {
                             expandedClients.remove(clientGroup.id)
                         } else {
@@ -582,6 +582,9 @@ struct ClientView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+            // 分组标题栏在展开时从右侧向左缩进20点
+            .padding(.trailing, isExpanded ? 20 : 0)
+            .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
             if isExpanded {
                 LazyVStack(spacing: 8) {
@@ -597,7 +600,15 @@ struct ClientView: View {
                 }
                 .padding(.top, 10)
                 .padding(.bottom, 6)
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.25).delay(0.15)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.2))
+                    )
+                )
             }
         }
         .padding(.horizontal, 16)
@@ -610,7 +621,7 @@ struct ClientView: View {
         return VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         if isExpanded {
                             expandedClients.remove("Pinned")
                         } else {
@@ -654,6 +665,9 @@ struct ClientView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+            // 置顶分栏标题在展开时从右侧向左缩进20点
+            .padding(.trailing, isExpanded ? 20 : 0)
+            .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
             if isExpanded {
                 LazyVStack(spacing: 8) {
@@ -663,7 +677,15 @@ struct ClientView: View {
                 }
                 .padding(.top, 10)
                 .padding(.bottom, 6)
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.25).delay(0.15)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.2))
+                    )
+                )
             }
         }
         .padding(.horizontal, 16)

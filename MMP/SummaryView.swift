@@ -51,8 +51,11 @@ struct SummaryView: View {
     @State private var showingNavDateToast = false
     @State private var navDateToastMessage = ""
     @State private var hasShownInitialToast = false
+    @State private var appLaunchTime: Date = Date()
+    @State private var lastToastShowTime: Date = Date.distantPast // 记录上次显示Toast的时间
 
     private let calendar = Calendar.current
+    private let toastCooldown: TimeInterval = 3600 // 1小时冷却时间
     
     private var previousWorkday: Date {
         let today = Date()
@@ -222,7 +225,7 @@ struct SummaryView: View {
         return VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         if isExpanded {
                             expandedFundCodes.remove(fundCode)
                         } else {
@@ -285,8 +288,12 @@ struct SummaryView: View {
                     .padding(.leading, 8)
                 }
             }
+            // 分组标题栏在展开时从右侧向左缩进20点
+            .padding(.trailing, isExpanded ? 20 : 0)
+            .animation(.easeInOut(duration: 0.2), value: isExpanded)
             
             if isExpanded {
+                // 展开的基金卡片从左侧向右缩进20点，延迟显示
                 VStack(alignment: .leading, spacing: 12) {
                     Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                         GridRow {
@@ -338,7 +345,15 @@ struct SummaryView: View {
                 .cornerRadius(10)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
                 .padding(.top, 8)
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.leading, 20) // 基金卡片从左侧向右缩进20点
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.25).delay(0.15)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95))
+                            .animation(.easeInOut(duration: 0.2))
+                    )
+                )
             }
         }
         .padding(.horizontal, 16)
@@ -449,59 +464,57 @@ struct SummaryView: View {
                         .padding(.bottom, 8)
                     }
                 
-                    VStack(spacing: 0) {
-                        if dataManager.holdings.isEmpty {
-                            VStack {
-                                Spacer()
-                                Text("当前没有数据")
-                                    .foregroundColor(.gray)
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
-                            .padding(.horizontal, 2)
-                        } else if filteredHoldings.isEmpty && !searchText.isEmpty {
-                            VStack {
-                                Spacer()
-                                Text("未找到符合条件的内容")
-                                    .foregroundColor(.gray)
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
-                            .padding(.horizontal, 2)
-                        } else {
-                            ScrollView {
-                                LazyVStack(spacing: 0) {
-                                    ForEach(sortedFundCodes, id: \.self) { fundCode in
-                                        if let funds = allGroupedFunds[fundCode] {
-                                            fundGroupItemView(fundCode: fundCode, funds: funds)
-                                        }
+                    // 主要内容区域
+                    if dataManager.holdings.isEmpty {
+                        VStack {
+                            Spacer()
+                            Text("当前没有数据")
+                                .foregroundColor(.gray)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 2)
+                    } else if filteredHoldings.isEmpty && !searchText.isEmpty {
+                        VStack {
+                            Spacer()
+                            Text("未找到符合条件的内容")
+                                .foregroundColor(.gray)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 2)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(sortedFundCodes, id: \.self) { fundCode in
+                                    if let funds = allGroupedFunds[fundCode] {
+                                        fundGroupItemView(fundCode: fundCode, funds: funds)
                                     }
                                 }
-                                .padding(.bottom, 20)
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
-                            .padding(.horizontal, 2)
+                            .padding(.bottom, 20)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 2)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .background(Color(.systemGroupedBackground))
                 .navigationBarHidden(true)
@@ -509,35 +522,43 @@ struct SummaryView: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             
+                // Toast 叠加层 - 修复位置和大小
                 if showingToast || showingNavDateToast {
                     VStack {
-                        Spacer()
-                        
                         if showingToast {
-                            ToastView(message: toastMessage, isShowing: $showingToast)
-                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                            CustomToastView(
+                                outdatedCount: outdatedFunds.count,
+                                sortedUniqueFunds: getSortedUniqueOutdatedFunds(),
+                                isShowing: $showingToast,
+                                showTime: 6.0
+                            )
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         }
                         
                         if showingNavDateToast {
                             ToastView(message: navDateToastMessage, isShowing: $showingNavDateToast)
                                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         }
-                        
-                        Spacer()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .zIndex(999)
                 }
             }
         }
         .onAppear {
-            hasShownInitialToast = false
-            
-            checkAndShowOutdatedToast()
+            // 只在特定条件下检查并显示Toast
+            checkAndShowOutdatedToastIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("HoldingsDataUpdated"))) { _ in
             refreshID = UUID()
+            // 数据更新后重置标志，允许再次显示Toast
             hasShownInitialToast = false
+            lastToastShowTime = Date.distantPast // 重置上次显示时间
+            
+            // 数据更新后检查是否需要显示Toast
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                checkAndShowOutdatedToastIfNeeded()
+            }
         }
     }
     
@@ -566,21 +587,37 @@ struct SummaryView: View {
         }
     }
     
-    private func checkAndShowOutdatedToast() {
+    /// 改进的Toast显示逻辑：
+    /// 1. 只在以下情况下显示：
+    ///    - App首次启动且有非最新日期的基金
+    ///    - 数据更新后且有非最新日期的基金
+    ///    - 距离上次显示超过1小时且有非最新日期的基金
+    /// 2. 避免每次切换到页面都显示
+    private func checkAndShowOutdatedToastIfNeeded() {
         guard !dataManager.holdings.isEmpty && !outdatedFunds.isEmpty else {
             return
         }
 
-        guard !hasShownInitialToast else {
+        let currentTime = Date()
+        
+        // 检查冷却时间 - 如果上次显示时间在1小时内，则不显示
+        if currentTime.timeIntervalSince(lastToastShowTime) < toastCooldown {
+            return
+        }
+
+        // 检查是否已经显示过初始Toast
+        if hasShownInitialToast {
             return
         }
         
+        // 显示Toast
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showingToast = true
                 hasShownInitialToast = true
+                lastToastShowTime = currentTime // 记录显示时间
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showingToast = false
                 }
@@ -588,29 +625,14 @@ struct SummaryView: View {
         }
     }
     
-    private var toastMessage: String {
-        let outdatedCount = outdatedFunds.count
-        var message = "非最新日期净值：\(outdatedCount)支\n"
-        
+    private func getSortedUniqueOutdatedFunds() -> [(String, String)] {
         var uniqueFunds: [String: String] = [:]
         for fund in outdatedFunds {
             uniqueFunds[fund.fundCode] = fund.fundName
         }
         
-        let displayFunds = Array(uniqueFunds.prefix(5))
-        for (index, (fundCode, fundName)) in displayFunds.enumerated() {
-            let displayName = fundName.count > 6 ? String(fundName.prefix(6)) + "..." : fundName
-            message += "\(displayName)[\(fundCode)]"
-            if index < displayFunds.count - 1 {
-                message += "\n"
-            }
-        }
-
-        if uniqueFunds.count > 5 {
-            message += "\n..."
-        }
-        
-        return message
+        // 按基金代码从小到大排序
+        return uniqueFunds.sorted { $0.key < $1.key }
     }
     
     private func colorForValue(_ value: Double?) -> Color {
@@ -635,6 +657,120 @@ struct SummaryView: View {
         case "syl_6y": return fund.navReturn6m?.formattedPercentage ?? "/"
         case "syl_1n": return fund.navReturn1y?.formattedPercentage ?? "/"
         default: return ""
+        }
+    }
+}
+
+// 自定义ToastView，修复位置和大小问题
+struct CustomToastView: View {
+    let outdatedCount: Int
+    let sortedUniqueFunds: [(String, String)]
+    @Binding var isShowing: Bool
+    let showTime: Double
+    
+    // 计算动态高度
+    private var toastHeight: CGFloat {
+        let baseHeight: CGFloat = 60 // 标题和基本内边距的高度
+        let lineHeight: CGFloat = 22 // 每行基金信息的高度
+        let maxDisplayCount = min(5, sortedUniqueFunds.count)
+        let contentHeight = CGFloat(maxDisplayCount) * lineHeight
+        let maxHeight: CGFloat = 200 // 最大高度
+        
+        return min(baseHeight + contentHeight, maxHeight)
+    }
+    
+    // 计算最合适的宽度
+    private var optimalWidth: CGFloat {
+        // 计算最长基金名称的长度
+        let maxNameLength = sortedUniqueFunds.prefix(5).map { fundCode, fundName in
+            let displayName = fundName.count > 8 ? String(fundName.prefix(8)) + "..." : fundName
+            return displayName.count + fundCode.count + 4 // +4 for brackets and spacing
+        }.max() ?? 0
+        
+        // 基础宽度 + 根据最长内容调整
+        let baseWidth: CGFloat = 100
+        let extraWidth = CGFloat(maxNameLength) * 7 // 每个字符大约7点宽度
+        
+        return min(baseWidth + extraWidth, 350) // 最大不超过350
+    }
+    
+    // 根据数量获取颜色
+    private func colorForCount(_ count: Int) -> Color {
+        if count == 1 {
+            return .yellow
+        } else if count <= 3 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 标题 - 使用深灰色，数字部分根据数量变色且斜体
+            HStack(spacing: 0) {
+                Text("非最新日期净值:")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(.darkGray))
+                
+                Text("\(outdatedCount)")
+                    .font(.system(size: 16, weight: .semibold))
+                    .italic()
+                    .foregroundColor(colorForCount(outdatedCount))
+                
+                Text(" 支")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color(.darkGray))
+            }
+            
+            // 内容区域 - 可滚动
+            if !sortedUniqueFunds.isEmpty {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(sortedUniqueFunds.prefix(5)), id: \.0) { fundCode, fundName in
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                let displayName = fundName.count > 8 ? String(fundName.prefix(8)) + "..." : fundName
+                                Text(displayName)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+                                
+                                Text("[\(fundCode)]")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 只有当基金数量超过5支时才显示"..."
+                        if sortedUniqueFunds.count > 5 {
+                            Text("... 还有\(sortedUniqueFunds.count - 5)支")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
+                        }
+                    }
+                }
+                .frame(maxHeight: 120) // 限制最大高度
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(width: optimalWidth, height: toastHeight) // 使用最合适宽度
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + showTime) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isShowing = false
+                }
+            }
         }
     }
 }
