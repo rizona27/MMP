@@ -322,34 +322,52 @@ struct SummaryView: View {
             
             if isExpanded {
                 VStack(alignment: .leading, spacing: shouldShowClientInfo ? 12 : 8) {
-                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: shouldShowClientInfo ? 8 : 6) {
-                        GridRow {
-                            Text("近1月:")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
-                                .foregroundColor(.secondary)
-                            Text(firstFund.navReturn1m?.formattedPercentage ?? "/")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
-                                .foregroundColor(colorForValue(firstFund.navReturn1m))
-                            Text("近3月:")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
-                                .foregroundColor(.secondary)
-                            Text(firstFund.navReturn3m?.formattedPercentage ?? "/")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
-                                .foregroundColor(colorForValue(firstFund.navReturn3m))
+                    // 修复网格对齐问题
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: shouldShowClientInfo ? 8 : 6) {
+                            HStack(spacing: 16) {
+                                Text("近1月:")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 14))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 58, alignment: .leading)
+                                Text(firstFund.navReturn1m?.formattedPercentage ?? "/")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
+                                    .foregroundColor(colorForValue(firstFund.navReturn1m))
+                                    .frame(minWidth: 60, alignment: .leading)
+                            }
+                            HStack(spacing: 16) {
+                                Text("近6月:")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 14))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 58, alignment: .leading)
+                                Text(firstFund.navReturn6m?.formattedPercentage ?? "/")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
+                                    .foregroundColor(colorForValue(firstFund.navReturn6m))
+                                    .frame(minWidth: 60, alignment: .leading)
+                            }
                         }
-                        GridRow {
-                            Text("近6月:")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
-                                .foregroundColor(.secondary)
-                            Text(firstFund.navReturn6m?.formattedPercentage ?? "/")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
-                                .foregroundColor(colorForValue(firstFund.navReturn6m))
-                            Text("近1年:")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 14))
-                                .foregroundColor(.secondary)
-                            Text(firstFund.navReturn1y?.formattedPercentage ?? "/")
-                                .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
-                                .foregroundColor(colorForValue(firstFund.navReturn1y))
+                        
+                        VStack(alignment: .leading, spacing: shouldShowClientInfo ? 8 : 6) {
+                            HStack(spacing: 16) {
+                                Text("近3月:")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 14))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 58, alignment: .leading)
+                                Text(firstFund.navReturn3m?.formattedPercentage ?? "/")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
+                                    .foregroundColor(colorForValue(firstFund.navReturn3m))
+                                    .frame(minWidth: 60, alignment: .leading)
+                            }
+                            HStack(spacing: 16) {
+                                Text("近1年:")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 14))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 58, alignment: .leading)
+                                Text(firstFund.navReturn1y?.formattedPercentage ?? "/")
+                                    .font(.system(size: shouldShowClientInfo ? 13 : 15, weight: .medium))
+                                    .foregroundColor(colorForValue(firstFund.navReturn1y))
+                                    .frame(minWidth: 60, alignment: .leading)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)

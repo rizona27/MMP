@@ -234,7 +234,7 @@ struct ThemeModeView: View {
 }
 
 struct PrivacyModeView: View {
-    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = false
+    @AppStorage("isPrivacyModeEnabled") private var isPrivacyModeEnabled: Bool = true
     
     var body: some View {
         CustomCardView(
@@ -297,6 +297,13 @@ struct ConfigView: View {
     }
 
     func onAppear() {
+        // 确保默认值设置正确
+        // 隐私模式默认开启
+        UserDefaults.standard.register(defaults: ["isPrivacyModeEnabled": true])
+        // 主题模式默认跟随系统
+        UserDefaults.standard.register(defaults: ["themeMode": "system"])
+        // 数据接口默认使用天天基金
+        UserDefaults.standard.register(defaults: ["selectedFundAPI": "eastmoney"])
     }
     
     func onDisappear() {
@@ -384,7 +391,7 @@ struct ConfigView: View {
                             
                             Color.clear
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 100) 
+                                .frame(height: 100)
                         }
                         .padding(.horizontal, 8)
 
