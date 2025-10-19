@@ -103,10 +103,6 @@ struct TopPerformersView: View {
                 self.precomputedHoldings = computedData
                 self.isLoading = false
                 self.cachedSortedHoldings.removeAll()
-                
-                let count = computedData.count
-                self.toastMessage = "已加载 \(count) 条记录"
-                withAnimation { self.showingToast = true }
             }
         }
     }
@@ -152,7 +148,17 @@ struct TopPerformersView: View {
         guard selectedSortKey == .yield || selectedSortKey == .profit else {
             return nil
         }
-        return filteredAndSortedHoldings.firstIndex(where: { $0.profit.annualized < 0 })
+        
+        let holdings = filteredAndSortedHoldings
+        
+        if sortOrder == .descending {
+            if let lastPositiveIndex = holdings.lastIndex(where: { $0.profit.annualized >= 0 }) {
+                return lastPositiveIndex < holdings.count - 1 ? lastPositiveIndex : nil
+            }
+            return nil
+        } else {
+            return holdings.lastIndex(where: { $0.profit.annualized < 0 })
+        }
     }
 
     private var filteredAndSortedHoldings: [(holding: FundHolding, profit: ProfitResult, daysHeld: Int)] {
@@ -238,7 +244,7 @@ struct TopPerformersView: View {
     
     private func shouldShowDivider(at index: Int) -> Bool {
         guard let zeroIndex = zeroProfitIndex else { return false }
-        return index == zeroIndex - 1
+        return index == zeroIndex
     }
     
     var body: some View {
@@ -514,9 +520,6 @@ struct TopPerformersView: View {
         .onChange(of: sortOrder) {
             cachedSortedHoldings.removeAll()
         }
-        .refreshable {
-            refreshData()
-        }
         .background(dataChangeListener)
     }
     
@@ -581,12 +584,6 @@ struct HoldingRowView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if showDivider {
-                Divider()
-                    .background(Color.secondary)
-                    .frame(height: 2)
-            }
-            
             HStack(alignment: .center, spacing: 0) {
                 Group {
                     Text("\(index + 1).")
@@ -645,6 +642,12 @@ struct HoldingRowView: View {
                 }
             }
             .padding(.vertical, 6)
+            
+            if showDivider {
+                Divider()
+                    .background(Color.secondary)
+                    .frame(height: 2)
+            }
         }
     }
 }
