@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// 修正后的 CustomCardView - 使用更柔和的渐变效果
 struct CustomCardView<Content: View>: View {
     var title: String?
     var description: String?
@@ -12,7 +13,7 @@ struct CustomCardView<Content: View>: View {
     var toggleTint: Color = .accentColor
     var hasAnimatedBackground: Bool = false
 
-    @State private var animationProgress: CGFloat = 0.0
+    @State private var hueRotation: Double = 0.0
 
     @ViewBuilder let content: (Color) -> Content
 
@@ -58,22 +59,24 @@ struct CustomCardView<Content: View>: View {
         .background(
             ZStack {
                 if hasAnimatedBackground {
-                    let gradientColors = [
-                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),
-                        Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),
-                        Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),
-                        Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)
-                    ]
-
-                    LinearGradient(
-                        gradient: Gradient(colors: gradientColors),
-                        startPoint: UnitPoint(x: -1 + animationProgress * 2, y: -1 + animationProgress * 2),
-                        endPoint: UnitPoint(x: 0 + animationProgress * 2, y: 0 + animationProgress * 2)
-                    )
-                    .animation(Animation.linear(duration: 8).repeatForever(autoreverses: false), value: animationProgress)
-                    .onAppear {
-                        animationProgress = 1.0
-                    }
+                    // 使用色调旋转创建柔和的颜色变化
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.7, green: 0.8, blue: 0.9),
+                                    Color(red: 0.9, green: 0.7, blue: 0.8),
+                                    Color(red: 0.9, green: 0.8, blue: 0.7)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .hueRotation(.degrees(hueRotation))
+                        .animation(
+                            Animation.easeInOut(duration: 8).repeatForever(autoreverses: true),
+                            value: hueRotation
+                        )
                 } else {
                     backgroundColor
                 }
@@ -81,6 +84,11 @@ struct CustomCardView<Content: View>: View {
         )
         .cornerRadius(15)
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+        .onAppear {
+            if hasAnimatedBackground {
+                hueRotation = 360
+            }
+        }
 
         if let action = action {
             Button(action: action) {
@@ -90,6 +98,48 @@ struct CustomCardView<Content: View>: View {
         } else {
             cardContent
         }
+    }
+}
+
+// 修正后的渐变文字组件 - 使用动态流动的渐变
+struct AnimatedGradientText: View {
+    let text: String
+    @State private var gradientOffset: CGFloat = -1.0
+    
+    var body: some View {
+        Text(text)
+            .font(.system(size: 16))
+            .italic()
+            .bold(false)
+            .foregroundColor(.clear)
+            .overlay(
+                GeometryReader { geometry in
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 0.7, green: 0.8, blue: 0.9),
+                            Color(red: 0.9, green: 0.7, blue: 0.8),
+                            Color(red: 0.9, green: 0.8, blue: 0.7),
+                            Color(red: 0.7, green: 0.8, blue: 0.9)
+                        ]),
+                        startPoint: UnitPoint(x: gradientOffset, y: 0.5),
+                        endPoint: UnitPoint(x: gradientOffset + 1.0, y: 0.5)
+                    )
+                    .mask(
+                        Text(text)
+                            .font(.system(size: 16))
+                            .italic()
+                            .bold(false)
+                    )
+                    .animation(
+                        Animation.linear(duration: 3).repeatForever(autoreverses: false),
+                        value: gradientOffset
+                    )
+                }
+            )
+            .fixedSize()
+            .onAppear {
+                gradientOffset = 1.0
+            }
     }
 }
 
@@ -289,7 +339,6 @@ struct ConfigView: View {
     @State private var document: CSVExportDocument?
     @State private var showToast = false
     @State private var toastMessage = ""
-    @State private var gradientAnimationProgress: CGFloat = 0.0
 
     private func showToast(message: String) {
         toastMessage = message
@@ -300,11 +349,6 @@ struct ConfigView: View {
         UserDefaults.standard.register(defaults: ["isPrivacyModeEnabled": true])
         UserDefaults.standard.register(defaults: ["themeMode": "system"])
         UserDefaults.standard.register(defaults: ["selectedFundAPI": "eastmoney"])
-        
-        // 启动渐变动画
-        withAnimation(Animation.linear(duration: 8).repeatForever(autoreverses: false)) {
-            gradientAnimationProgress = 1.0
-        }
     }
     
     func onDisappear() {
@@ -403,23 +447,10 @@ struct ConfigView: View {
                         Divider()
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
+                        
+                        // 使用修正后的渐变文字组件
                         VStack {
-                            Text("Happiness around the corner.")
-                                .font(.system(size: 16))
-                                .italic()
-                                .bold(false)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7),
-                                            Color(red: 0.9, green: 0.7, blue: 0.8, opacity: 0.7),
-                                            Color(red: 0.9, green: 0.8, blue: 0.7, opacity: 0.7),
-                                            Color(red: 0.7, green: 0.8, blue: 0.9, opacity: 0.7)
-                                        ]),
-                                        startPoint: UnitPoint(x: -1 + gradientAnimationProgress * 2, y: -1 + gradientAnimationProgress * 2),
-                                        endPoint: UnitPoint(x: 0 + gradientAnimationProgress * 2, y: 0 + gradientAnimationProgress * 2)
-                                    )
-                                )
+                            AnimatedGradientText(text: "Happiness around the corner.")
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 30)
@@ -441,7 +472,7 @@ struct ConfigView: View {
                     isPresented: $isExporting,
                     document: document,
                     contentType: .commaSeparatedText,
-                    defaultFilename: "\(Date().formatted(Date.FormatStyle().month().day()))数据导出.csv"
+                    defaultFilename: generateExportFilename()
                 ) { result in
                     handleFileExport(result: result)
                 }
@@ -461,6 +492,13 @@ struct ConfigView: View {
                 ToastView(message: toastMessage, isShowing: $showToast)
             }
         }
+    }
+
+    private func generateExportFilename() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM-dd"
+        let dateString = dateFormatter.string(from: Date())
+        return "fundlist_\(dateString).csv"
     }
 
     private func exportHoldingsToCSV() {
@@ -558,20 +596,24 @@ struct ConfigView: View {
                 let values = lines[i].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
                 guard values.count >= headers.count else { continue }
                 
+                // 获取基金代码
                 guard let fundCodeIndex = columnIndices["基金代码"],
                                      let fundCode = values[safe: fundCodeIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let cleanedFundCode = String(format: "%06d", Int(fundCode) ?? 0)
                 
+                // 获取购买金额
                 guard let amountIndex = columnIndices["购买金额"],
                                      let amountStr = values[safe: amountIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
                                      let amount = Double(amountStr) else { continue }
                 let cleanedAmount = (amount * 100).rounded() / 100
                 
+                // 获取购买份额
                 guard let sharesIndex = columnIndices["购买份额"],
                                      let sharesStr = values[safe: sharesIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
                                      let shares = Double(sharesStr) else { continue }
                 let cleanedShares = (shares * 100).rounded() / 100
                 
+                // 获取购买日期
                 var purchaseDate = Date()
                 if let dateIndex = columnIndices["购买日期"],
                    let dateStr = values[safe: dateIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) {
@@ -580,6 +622,7 @@ struct ConfigView: View {
                     }
                 }
                 
+                // 获取客户号
                 guard let clientIDIndex = columnIndices["客户号"],
                                      let clientID = values[safe: clientIDIndex]?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
                 let desiredLength = 12
@@ -591,6 +634,8 @@ struct ConfigView: View {
                     let leadingZeros = String(repeating: "0", count: numberOfZerosToAdd)
                     cleanedClientID = leadingZeros + clientID
                 }
+                
+                // 获取客户姓名 - 优先使用CSV中的姓名，如果没有则使用客户号
                 var clientName: String
                 if let clientNameIndex = columnIndices["客户姓名"],
                    let nameFromCSV = values[safe: clientNameIndex]?.trimmingCharacters(in: .whitespacesAndNewlines),
