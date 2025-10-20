@@ -150,11 +150,11 @@ struct ContentView: View {
                         Spacer()
 
                         VStack(spacing: 4) {
-                            Text("专注 · 价值")
+                            Text("专业 · 专注 · 价值")
                                 .font(.system(size: 13, weight: .light))
                                 .foregroundColor(Color(hex: "795548").opacity(0.6))
                             
-                            Text("Copyright © 2025 Rizona")
+                            Text("Copyright © 2025 Rizona.")
                                 .font(.system(size: 11, weight: .light))
                                 .foregroundColor(Color(hex: "795548").opacity(0.5))
                         }
