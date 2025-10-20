@@ -12,7 +12,7 @@ class UpdateLogViewModel: ObservableObject {
 
     let logs: [UpdateLog] = [
         UpdateLog(version: "Version 1.0.0", description: "初代版本，\n基础导入导出功能和API调用逻辑构建。"),
-        UpdateLog(version: "Version 1.2.0", description: "重构客户、日志页，\n新增排行页、优化程序使用。"),
+        UpdateLog(version: "Version 1.2.0", description: "重构客户、日志页，\n新增排名页、优化程序使用。"),
         UpdateLog(version: "Version 1.3.0", description: "一览页逻辑更新，\n重构日志分类、完善收益率指标。"),
         UpdateLog(version: "Version 1.4.0", description: "增加Logo和App名称，\n新增冗余API接口。"),
         UpdateLog(version: "Version 1.5.0", description: "增加隐私模式。"),
@@ -27,6 +27,7 @@ class UpdateLogViewModel: ObservableObject {
         UpdateLog(version: "Version 1.6.5", description: "报告和基金展示模块优化。"),
         UpdateLog(version: "Version 1.6.6", description: "一览和客户页面动画效果增强，\nToast显示机制调整。"),
         UpdateLog(version: "Version 1.6.7", description: "排名页面优化，\n增加筛选功能。"),
+        UpdateLog(version: "Version 1.6.8", description: "一览、客户、排名页面按钮优化。"),
         UpdateLog(version: "Version X.", description: "To be continued...")
     ]
 
@@ -68,7 +69,7 @@ struct AboutView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hex: "FFD700"))
-                        Text("Version: 1.6.7      By: rizona.cn@gmail.com")
+                        Text("Version: 1.6.8      By: rizona.cn@gmail.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
